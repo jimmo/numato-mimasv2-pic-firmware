@@ -57,4 +57,7 @@
 // Support: Set_Line_Coding, Set_Control_Line_State, Get_Line_Coding, and Serial_State commands
 #define USB_CDC_SUPPORT_ABSTRACT_CONTROL_MANAGEMENT_CAPABILITIES_D1
 
+#define SPI_CDC_PORT 0
+#define FPGA_UART_CDC_PORT 1
+
 #endif //USBCFG_H

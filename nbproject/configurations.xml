@@ -13,6 +13,7 @@
       <itemPath>usb_device_cdc.h</itemPath>
       <itemPath>usb_hal.h</itemPath>
       <itemPath>usb_hal_pic18.h</itemPath>
+      <itemPath>fpga_uart.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -28,6 +29,7 @@
       <itemPath>usb_events.c</itemPath>
       <itemPath>usb_device.c</itemPath>
       <itemPath>usb_device_cdc.c</itemPath>
+      <itemPath>fpga_uart.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"

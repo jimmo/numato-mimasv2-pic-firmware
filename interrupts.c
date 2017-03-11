@@ -11,7 +11,10 @@
 
 void interrupt high_isr(void) {
 #if defined(USB_INTERRUPT)
-    USBDeviceTasks();
+    if (PIR2bits.USBIF) {
+        USBDeviceTasks();
+        PIR2bits.USBIF = 0;
+    }
 #endif
 }
 

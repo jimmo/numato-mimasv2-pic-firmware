@@ -9,6 +9,8 @@
 #include "usb_device.h"
 #include "usb_device_cdc.h"
 
+#include "fpga_uart.h"
+
 void echo(uint8_t cdc_port) {
     uint8_t b;
     uint8_t bytes_read = getsUSBUSART(cdc_port, &b, 1);
@@ -25,14 +27,6 @@ void echo(uint8_t cdc_port) {
 }
 
 void EchoTask(void) {
-    if( USBGetDeviceState() < CONFIGURED_STATE ) {
-        return;
-    }
-
-    if( USBIsDeviceSuspended()) {
-        return;
-    }
-
     if( USBUSARTIsTxTrfReady(0)) {
         echo(0);
     }
@@ -40,8 +34,6 @@ void EchoTask(void) {
     if( USBUSARTIsTxTrfReady(1)) {
         echo(1);
     }
-
-    CDCTxService();
 }
 
 void main(void) {
@@ -50,11 +42,19 @@ void main(void) {
     USBDeviceInit();
     USBDeviceAttach();
 
+    FpgaUartInit();
+
     while(1) {
 #if defined(USB_POLLING)
         USBDeviceTasks();
 #endif
-        EchoTask();
+
+        if( USBGetDeviceState() < CONFIGURED_STATE || USBIsDeviceSuspended()) {
+            continue;
+        }
+
+        FpgaUartTask();
+        CDCTxService();
     }
 }
 
