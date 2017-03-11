@@ -10,8 +10,13 @@
 #include "usb_device_cdc.h"
 
 #include "fpga_uart.h"
+#include "spi_flash.h"
 
-void echo(uint8_t cdc_port) {
+void EchoTask(uint8_t cdc_port) {
+    if (!USBUSARTIsTxTrfReady(cdc_port)) {
+        return;
+    }
+
     uint8_t b;
     uint8_t bytes_read = getsUSBUSART(cdc_port, &b, 1);
 
@@ -26,22 +31,13 @@ void echo(uint8_t cdc_port) {
     putUSBUSART(cdc_port, &b, 1);
 }
 
-void EchoTask(void) {
-    if( USBUSARTIsTxTrfReady(0)) {
-        echo(0);
-    }
-
-    if( USBUSARTIsTxTrfReady(1)) {
-        echo(1);
-    }
-}
-
 void main(void) {
     ConfigureOscillator();
 
     USBDeviceInit();
     USBDeviceAttach();
 
+    SpiFlashInit();
     FpgaUartInit();
 
     while(1) {
@@ -53,6 +49,7 @@ void main(void) {
             continue;
         }
 
+        SpiFlashTask();
         FpgaUartTask();
         CDCTxService();
     }

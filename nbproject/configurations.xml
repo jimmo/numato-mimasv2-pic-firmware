@@ -14,6 +14,8 @@
       <itemPath>usb_hal.h</itemPath>
       <itemPath>usb_hal_pic18.h</itemPath>
       <itemPath>fpga_uart.h</itemPath>
+      <itemPath>spi_flash.h</itemPath>
+      <itemPath>spi.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -30,6 +32,8 @@
       <itemPath>usb_device.c</itemPath>
       <itemPath>usb_device_cdc.c</itemPath>
       <itemPath>fpga_uart.c</itemPath>
+      <itemPath>spi_flash.c</itemPath>
+      <itemPath>spi.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -136,7 +140,7 @@
         <property key="initialize-data" value="true"/>
         <property key="keep-generated-startup.as" value="false"/>
         <property key="link-in-c-library" value="true"/>
-        <property key="link-in-peripheral-library" value="true"/>
+        <property key="link-in-peripheral-library" value="false"/>
         <property key="managed-stack" value="false"/>
         <property key="opt-xc8-linker-file" value="false"/>
         <property key="opt-xc8-linker-link_startup" value="false"/>

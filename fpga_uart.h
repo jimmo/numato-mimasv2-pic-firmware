@@ -1,7 +1,7 @@
 #ifndef FPGA_UART_H
 #define	FPGA_UART_H
 
-#include <xc.h> // include processor files - each processor file is guarded.
+#include <xc.h>
 
 void FpgaUartInit(void);
 
