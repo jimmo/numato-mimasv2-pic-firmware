@@ -3,8 +3,8 @@
 
 #define USB_EP0_BUFF_SIZE		8	// Valid Options: 8, 16, 32, or 64 bytes.
 
-#define USB_MAX_NUM_INT     	2   //Set this number to match the maximum interface number used in the descriptors for this firmware project
-#define USB_MAX_EP_NUMBER	    2   //Set this number to match the maximum endpoint number used in the descriptors for this firmware project
+#define USB_MAX_NUM_INT     	4   //Set this number to match the maximum interface number used in the descriptors for this firmware project
+#define USB_MAX_EP_NUMBER	    4   //Set this number to match the maximum endpoint number used in the descriptors for this firmware project
 
 #define USB_USER_DEVICE_DESCRIPTOR &device_dsc
 #define USB_USER_DEVICE_DESCRIPTOR_INCLUDE extern const USB_DEVICE_DESCRIPTOR device_dsc
@@ -45,12 +45,7 @@
 
 #define CDC_COMM_IN_EP_SIZE     10
 
-#define CDC_NUM_PORTS           1
-
-#define CDC_COMM_INTF_ID 0
-#define CDC_DATA_INTF_ID 1
-#define CDC_COMM_EP 1
-#define CDC_DATA_EP 2
+#define CDC_NUM_PORTS           2
 
 // This defines the size of the tx/rx buffers.
 #define CDC_DATA_OUT_EP_SIZE    64/CDC_NUM_PORTS

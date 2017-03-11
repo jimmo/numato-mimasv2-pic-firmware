@@ -24,9 +24,8 @@ bool USER_USB_CALLBACK_EVENT_HANDLER(USB_EVENT event, void *pdata, uint16_t size
             break;
 
         case EVENT_CONFIGURED:
-            //CDCInitEP(0, 0, 1, 1, 2);
-            //CDCInitEP(1, 2, 3, 3, 4);
-            CDCInitEP();
+            CDCInitEP(0, 0, 1, 1, 2);
+            CDCInitEP(1, 2, 3, 3, 4);
             break;
 
         case EVENT_SET_DESCRIPTOR:

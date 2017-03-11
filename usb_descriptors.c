@@ -1,6 +1,3 @@
-// Based on MLA's cdc_basic example.
-// Source version: mla_v2016_11_07
-
 #include "usb.h"
 #include "usb_device_cdc.h"
 
@@ -27,7 +24,7 @@ const uint8_t configDescriptor1[] = {
     // ----- Configuration descriptor ------------------------------------------
     0x09,                          // Size of this descriptor in bytes
     USB_DESCRIPTOR_CONFIGURATION,  // CONFIGURATION descriptor type
-    9+58*1,0,                      // Total length of data for this cfg
+    9+58*2,0,                      // Total length of data for this cfg
     USB_MAX_NUM_INT,               // Number of interfaces in this cfg
     1,                             // Index value of this configuration
     0,                             // Configuration string index
@@ -103,6 +100,74 @@ const uint8_t configDescriptor1[] = {
     CDC_DATA_IN_EP_SIZE,0x00,      // Max tx/rx size
     0x00,                          // Interval
 
+    // ---- CDC2 - comm interface ----------------------------------------------
+    9,                             // Size of this descriptor in bytes
+    USB_DESCRIPTOR_INTERFACE,      // INTERFACE descriptor type
+    2,                             // Interface Number                       ***
+    0,                             // Alternate Setting Number
+    1,                             // Number of endpoints in this intf
+    COMM_INTF,                     // Class code
+    ABSTRACT_CONTROL_MODEL,        // Subclass code
+    V25TER,                        // Protocol code
+    0x04,                          // Interface string index                 ***
+
+    // ----- CDC2 - class-specific descriptors ---------------------------------
+    sizeof(USB_CDC_HEADER_FN_DSC),
+    CS_INTERFACE,
+    DSC_FN_HEADER,
+    0x10,0x01,
+
+    sizeof(USB_CDC_ACM_FN_DSC),
+    CS_INTERFACE,
+    DSC_FN_ACM,
+    USB_CDC_ACM_FN_DSC_VAL,
+
+    sizeof(USB_CDC_UNION_FN_DSC),
+    CS_INTERFACE,
+    DSC_FN_UNION,
+    2,                             // Interface ID of the comm interface.    ***
+    3,                             // Interface ID of the data interface.    ***
+
+    sizeof(USB_CDC_CALL_MGT_FN_DSC),
+    CS_INTERFACE,
+    DSC_FN_CALL_MGT,
+    0x00,
+    3,                             // Interface ID of the data interface.
+
+    // ----- CDC2 - comm endpoint ----------------------------------------------
+    0x07,                          // Size of this descriptor in bytes
+    USB_DESCRIPTOR_ENDPOINT,       // Endpoint Descriptor
+    _EP03_IN,                      // EndpointAddress                        ***
+    _INTERRUPT,                    // Attributes
+    0x08,0x00,                     // Max tx/rx size
+    0x02,                          // Interval
+
+    // ----- CDC2 - data interface ---------------------------------------------
+    0x09,                          // Size of this descriptor in bytes
+    USB_DESCRIPTOR_INTERFACE,      // INTERFACE descriptor type
+    3,                             // Interface Number                       ***
+    0,                             // Alternate Setting Number
+    2,                             // Number of endpoints in this intf
+    DATA_INTF,                     // Class code
+    0,                             // Subclass code
+    NO_PROTOCOL,                   // Protocol code
+    0x04,                          // Interface string index                 ***
+
+    // ----- CDC2 - data out endpoint ------------------------------------------
+    0x07,                          // Size of this descriptor in bytes
+    USB_DESCRIPTOR_ENDPOINT,       // Endpoint Descriptor
+    _EP04_OUT,                     // EndpointAddress                        ***
+    _BULK,                         // Attributes
+    CDC_DATA_OUT_EP_SIZE,0x00,     // Max tx/rx size
+    0x00,                          // Interval
+
+    // ----- CDC2 - data in endpoint ---0---------------------------------------
+    0x07,                          // Size of this descriptor in bytes
+    USB_DESCRIPTOR_ENDPOINT,       // Endpoint Descriptor
+    _EP04_IN,                      // EndpointAddress                        ***
+    _BULK,                         // Attributes
+    CDC_DATA_IN_EP_SIZE,0x00,      // Max tx/rx size
+    0x00,                          // Interval
 };
 
 // Language code string descriptor

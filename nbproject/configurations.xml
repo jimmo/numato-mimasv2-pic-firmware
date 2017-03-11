@@ -103,7 +103,8 @@
       <HI-TECH-LINK>
         <property key="additional-options-checksum" value=""/>
         <property key="additional-options-code-offset" value="0x1000"/>
-        <property key="additional-options-command-line" value=""/>
+        <property key="additional-options-command-line"
+                  value="-L-AUSB_BANK=0280h-02ffh -L-pusb_data=USB_BANK"/>
         <property key="additional-options-errata" value=""/>
         <property key="additional-options-extend-address" value="false"/>
         <property key="additional-options-trace-type" value=""/>

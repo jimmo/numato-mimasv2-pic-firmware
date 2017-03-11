@@ -11,7 +11,7 @@
 
 void echo(uint8_t cdc_port) {
     uint8_t b;
-    uint8_t bytes_read = getsUSBUSART(&b, 1);
+    uint8_t bytes_read = getsUSBUSART(cdc_port, &b, 1);
 
     if (bytes_read == 0) {
         return;
@@ -21,7 +21,7 @@ void echo(uint8_t cdc_port) {
         b += cdc_port;
     }
 
-    putUSBUSART(&b, 1);
+    putUSBUSART(cdc_port, &b, 1);
 }
 
 void EchoTask(void) {
@@ -33,13 +33,13 @@ void EchoTask(void) {
         return;
     }
 
-    if( USBUSARTIsTxTrfReady()) {
+    if( USBUSARTIsTxTrfReady(0)) {
         echo(0);
     }
 
-    //if( USBUSARTIsTxTrfReady(1)) {
-    //    echo(1);
-    //}
+    if( USBUSARTIsTxTrfReady(1)) {
+        echo(1);
+    }
 
     CDCTxService();
 }

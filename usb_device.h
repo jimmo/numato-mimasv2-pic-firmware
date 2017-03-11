@@ -1,3 +1,6 @@
+// Copy of usb_device.h from MLA.
+// Source version: mla_v2016_11_07
+
 // DOM-IGNORE-BEGIN
 /*******************************************************************************
 Copyright 2015 Microchip Technology Inc. (www.microchip.com)
