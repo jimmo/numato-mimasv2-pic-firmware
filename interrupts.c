@@ -5,7 +5,9 @@
 
 #include "usb.h"
 
-
+// When using the HID bootloader, you must specify --codeoffset=0x1000 on the
+// linker command line.
+// Project properties > XC8 linker > Additional options > Code offset
 
 void interrupt high_isr(void) {
 #if defined(USB_INTERRUPT)
