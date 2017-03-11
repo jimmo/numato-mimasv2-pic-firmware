@@ -1,5 +1,12 @@
 # PIC firmware for the Numato Mimas v2
 
+## Overview
+
+This replaces the factory firmware and addresses two main limitations:
+
+- The FPGA UART now runs at 115200 baud.
+- The board shows up as two USB serial ports, one for the SPI Flash programmer, one for the FPGA UART. This avoids the need to use the mode switch on the board.
+
 ## Building instructions:
 
 Get the necessary software:
@@ -26,7 +33,7 @@ Bus 001 Device 052: ID 04d8:003c Microchip Technology, Inc.
 Verify mphidflash can find the device:
 
 ```
-$ ./mphidflash-1.6-linux-64 
+$ ./mphidflash-1.6-linux-64
 USB HID device found: 12288 bytes free
 Device family: PIC18
 ```
