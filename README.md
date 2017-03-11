@@ -14,7 +14,7 @@ Get the necessary software:
 - PIC development tools
   - [MPLAB.X](http://microchip.com/mplabx)
   - [XC8 compiler](http://www.microchip.com/mplab/compilers) for MPLAB.X  (e.g. [linux version](http://www.microchip.com/mplabxc8linux))
-  - [XC8 perhipheral library](http://www.microchip.com/mplab/compilers)  (e.g. [linux version](http://www.microchip.com/mymicrochip/filehandler.aspx?ddocname=en574970))
+  - [XC8 legacy PIC18F perhipheral library](http://www.microchip.com/mplab/compilers)  (e.g. [linux version](http://www.microchip.com/mymicrochip/filehandler.aspx?ddocname=en574970))
 - [mphidflash](https://code.google.com/archive/p/mphidflash/)
 
 Open the project in MPLAB.X, select Run>Build.
