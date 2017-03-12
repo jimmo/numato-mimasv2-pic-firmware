@@ -2,14 +2,6 @@
 
 #include "spi.h"
 
-void CloseSPI(void);
-unsigned char DataRdySPI(void);
-void getsSPI( unsigned char *rdptr, unsigned char length );
-void OpenSPI( unsigned char sync_mode, unsigned char bus_mode, unsigned char smp_phase);
-void putsSPI( unsigned char *wrptr );
-unsigned char ReadSPI( void );
-signed char WriteSPI( unsigned char data_out );
-
 void CloseSPI(void) {
   SSPCON1bits.SSPEN = 0;
 }
@@ -80,6 +72,16 @@ void putsSPI( unsigned char *wrptr )
   {
      SSPBUF = *wrptr++;           // initiate SPI bus cycle
      while( !SSPSTATbits.BF );    // wait until 'BF' bit is set
+  }
+}
+
+void putbufSPI( unsigned char *wrptr, unsigned char length )
+{
+  while ( length )                // test for string null character
+  {
+     SSPBUF = *wrptr++;           // initiate SPI bus cycle
+     while( !SSPSTATbits.BF );    // wait until 'BF' bit is set
+     --length;
   }
 }
 

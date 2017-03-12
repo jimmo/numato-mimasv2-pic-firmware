@@ -242,7 +242,7 @@ void ServicePacket(PTR_SPARTAN_3A_CONFIG_OUT_PACKET ptrPacket)
 	}
 	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_PUTSTRING)
 	{
-		putsSPI(&ptrPacket->SPIPutString.Data[0]);//////////////////, ptrPacket->SPIPutString.Length);
+		putbufSPI(&ptrPacket->SPIPutString.Data[0], ptrPacket->SPIPutString.Length);
 		USBSendStatus(STATUS_SUCCESS, ptrPacket->SPIPutString.SpiNum, ptrPacket->RawPacket.Byte1);
 	}
 	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_GET_CHAR)
@@ -278,7 +278,7 @@ void ServicePacket(PTR_SPARTAN_3A_CONFIG_OUT_PACKET ptrPacket)
 	}
 	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_PUTSTRING)
 	{
-		putsSPI(&ptrPacket->SPIPutString.Data[0]);//////////, ptrPacket->SPIPutString.Length);
+		putbufSPI(&ptrPacket->SPIPutString.Data[0], ptrPacket->SPIPutString.Length);
 		USBSendStatus(STATUS_SUCCESS, ptrPacket->SetIOValue.SpiNum, ptrPacket->RawPacket.Byte1);
 	}
 }
@@ -307,6 +307,17 @@ unsigned char USBSendPacket(unsigned char* data, unsigned char Size)
     return 0;
 }
 
+// Data arriving from USB.
+uint8_t usb_rx_buf[CDC_DATA_IN_EP_SIZE] = {0};
+uint8_t usb_rx_avail = 0;
+
 void SpiFlashTask(void) {
-    ServicePacket(NULL);
+    uint8_t usb_bytes_read = getsUSBUSART(SPI_CDC_PORT, usb_rx_buf + usb_rx_avail, sizeof(usb_rx_buf) - usb_rx_avail);
+    if (usb_bytes_read) {
+        usb_rx_avail += usb_bytes_read;
+        if (usb_rx_avail == sizeof(usb_rx_buf)) {
+            ServicePacket((PTR_SPARTAN_3A_CONFIG_OUT_PACKET)usb_rx_buf);
+            usb_rx_avail = 0;
+        }
+    }
 }

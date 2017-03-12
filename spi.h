@@ -8,6 +8,7 @@ unsigned char DataRdySPI(void);
 void getsSPI( unsigned char *rdptr, unsigned char length );
 void OpenSPI( unsigned char sync_mode, unsigned char bus_mode, unsigned char smp_phase);
 void putsSPI( unsigned char *wrptr );
+void putbufSPI( unsigned char *wrptr, unsigned char length );
 unsigned char ReadSPI( void );
 signed char WriteSPI( unsigned char data_out );
 
