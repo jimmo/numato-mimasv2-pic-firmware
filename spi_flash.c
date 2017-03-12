@@ -1,6 +1,7 @@
 #include <xc.h>
 
 #include <stdint.h>
+#include <stdio.h>
 
 #include "usb_device_cdc.h"
 
@@ -61,6 +62,9 @@ void SPIOpen(unsigned char SyncMode, unsigned char BusMode, unsigned char SmpPha
 		//SSPSTAT settings
 		SSPSTATbits.SMP = 0; //Sample at middle
 		SSPSTATbits.CKE = 1;
+
+        // Run at Fosc/4
+        SSPADD = 0;
 
 		//SSPCON1 Setings
 		SSPCON1bits.CKP = 0;
@@ -189,6 +193,93 @@ Delay1KTCYx(unsigned char unit)
 	} while(--unit != 0);
 }
 
+void ServicePacket(PTR_SPARTAN_3A_CONFIG_OUT_PACKET ptrPacket)
+{
+    static char buf[14];
+	//memset(&Packet, 0, sizeof(SPARTAN_3A_CONFIG_IN_PACKET));
+	if(ptrPacket->RawPacket.Byte0 != '~')
+	{
+		//Incorrect packet delimiter
+        return;
+	}
+
+    if (ptrPacket->SpiOpen.SpiNum != 1) {
+        return;
+    }
+
+	if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_OPEN)
+	{
+        SPIOpen(ptrPacket->SpiOpen.SyncMode, ptrPacket->SpiOpen.BusMode, ptrPacket->SpiOpen.SmpPhase);
+		USBSendStatus(STATUS_SUCCESS, ptrPacket->SpiOpen.SpiNum, ptrPacket->RawPacket.Byte1);
+	}
+	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_CLOSE)
+	{
+        CloseSPI();
+		USBSendStatus(STATUS_SUCCESS, ptrPacket->SPIClose.SpiNum, ptrPacket->RawPacket.Byte1);
+	}
+	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_GETSTRING)
+	{
+        PtrRespPacket->SPIBuffer.Tilda = '~';
+		PtrRespPacket->SPIBuffer.PacketType = SPARTAN_3A_CONFIG_IN_PACKET_BUFFER;
+		PtrRespPacket->SPIBuffer.SpiNum = ptrPacket->SPIGetString.SpiNum;
+		getsSPI(&PtrRespPacket->SPIBuffer.Data[0], ptrPacket->SPIGetString.Length);
+		USBSendPacket((unsigned char*)&PtrRespPacket->RawData[0], sizeof(SPARTAN_3A_CONFIG_IN_PACKET));
+	}
+	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_PUTSTRING)
+	{
+        putbufSPI(&ptrPacket->SPIPutString.Data[0], ptrPacket->SPIPutString.Length);
+		USBSendStatus(STATUS_SUCCESS, ptrPacket->SPIPutString.SpiNum, ptrPacket->RawPacket.Byte1);
+	}
+	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_GET_CHAR)
+	{
+        PtrRespPacket->SPIBuffer.Tilda = '~';
+		PtrRespPacket->SPIBuffer.PacketType = SPARTAN_3A_CONFIG_IN_PACKET_BUFFER;
+		PtrRespPacket->SPIBuffer.SpiNum = ptrPacket->SPIGetChar.SpiNum;
+		PtrRespPacket->SPIBuffer.Data[0] = ReadSPI();
+		USBSendPacket((unsigned char*)&PtrRespPacket->RawData[0], sizeof(SPARTAN_3A_CONFIG_IN_PACKET));
+	}
+	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_PUT_CHAR)
+	{
+        WriteSPI(ptrPacket->SPIPutChar.Data);
+		USBSendStatus(STATUS_SUCCESS, ptrPacket->SPIPutChar.SpiNum, ptrPacket->RawPacket.Byte1);
+	}
+	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_SET_IO_DIR)
+	{
+        SPISetIODirection(ptrPacket->SetIODir.Io, ptrPacket->SetIODir.Direction);
+		USBSendStatus(STATUS_SUCCESS, ptrPacket->SetIODir.SpiNum, ptrPacket->RawPacket.Byte1);
+	}
+	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_SET_IO_VALUE)
+	{
+        SPISetIOValue(ptrPacket->SetIOValue.Io, ptrPacket->SetIOValue.Value);
+		USBSendStatus(STATUS_SUCCESS, ptrPacket->SetIOValue.SpiNum, ptrPacket->RawPacket.Byte1);
+	}
+	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_GET_IO_VALUE)
+	{
+        PtrRespPacket->SPIBuffer.Tilda = '~';
+		PtrRespPacket->SPIBuffer.PacketType = SPARTAN_3A_CONFIG_IN_PACKET_BUFFER;
+		PtrRespPacket->SPIBuffer.SpiNum = ptrPacket->GetIOValue.SpiNum;
+		PtrRespPacket->SPIBuffer.Data[0] = SPIGetIOValue(ptrPacket->GetIOValue.Io);
+		USBSendPacket((unsigned char*)&PtrRespPacket->RawData[0], sizeof(SPARTAN_3A_CONFIG_IN_PACKET));
+	}
+}
+
+void USBSendStatus(SPARTAN_3A_CONFIG_STATUS Status, uint8_t SPINum, uint8_t ExecutedCmd)
+{
+	PtrRespPacket->Status.Tilda = '~';
+	PtrRespPacket->Status.PacketType = SPARTAN_3A_CONFIG_IN_PACKET_STATUS;
+	PtrRespPacket->Status.SpiNum = SPINum;
+	PtrRespPacket->Status.Status = (unsigned char)Status;
+	PtrRespPacket->Status.ExecutedCmd = ExecutedCmd;
+
+	USBSendPacket((unsigned char*)(char*)&PtrRespPacket->RawData[0], sizeof(SPARTAN_3A_CONFIG_IN_PACKET));
+}
+
+unsigned char USBSendPacket(unsigned char* data, unsigned char Size)
+{
+	putUSBUSART(SPI_CDC_PORT, (char*)data, Size);
+    return 0;
+}
+
 void SpiFlashInit(void) {
     //Set all pins except PROGB as inputs
 	SPISetIODirection(SPARTAN_3A_CONFIG_IO_PIN_SI, IO_DIRECTION_IN);
@@ -209,115 +300,18 @@ void SpiFlashInit(void) {
 	SPISetIODirection(SPARTAN_3A_CONFIG_IO_PIN_PROGB, IO_DIRECTION_IN);
 }
 
-void ServicePacket(PTR_SPARTAN_3A_CONFIG_OUT_PACKET ptrPacket)
-{
-	//memset(&Packet, 0, sizeof(SPARTAN_3A_CONFIG_IN_PACKET));
-	if(ptrPacket->RawPacket.Byte0 != '~')
-	{
-		//Incorrect packet delimiter
-		return;
-	}
-
-    if (ptrPacket->SpiOpen.SpiNum != 1) {
-        return;
-    }
-
-	if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_OPEN)
-	{
-		SPIOpen(ptrPacket->SpiOpen.SyncMode, ptrPacket->SpiOpen.BusMode, ptrPacket->SpiOpen.SmpPhase);
-		USBSendStatus(STATUS_SUCCESS, ptrPacket->SpiOpen.SpiNum, ptrPacket->RawPacket.Byte1);
-	}
-	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_CLOSE)
-	{
-		CloseSPI();
-		USBSendStatus(STATUS_SUCCESS, ptrPacket->SPIClose.SpiNum, ptrPacket->RawPacket.Byte1);
-	}
-	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_GETSTRING)
-	{
-		PtrRespPacket->SPIBuffer.Tilda = '~';
-		PtrRespPacket->SPIBuffer.PacketType = SPARTAN_3A_CONFIG_IN_PACKET_BUFFER;
-		PtrRespPacket->SPIBuffer.SpiNum = ptrPacket->SPIGetString.SpiNum;
-		getsSPI(&PtrRespPacket->SPIBuffer.Data[0], ptrPacket->SPIGetString.Length);
-		USBSendPacket((unsigned char*)&PtrRespPacket->RawData[0], sizeof(SPARTAN_3A_CONFIG_IN_PACKET));
-	}
-	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_PUTSTRING)
-	{
-		putbufSPI(&ptrPacket->SPIPutString.Data[0], ptrPacket->SPIPutString.Length);
-		USBSendStatus(STATUS_SUCCESS, ptrPacket->SPIPutString.SpiNum, ptrPacket->RawPacket.Byte1);
-	}
-	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_GET_CHAR)
-	{
-		PtrRespPacket->SPIBuffer.Tilda = '~';
-		PtrRespPacket->SPIBuffer.PacketType = SPARTAN_3A_CONFIG_IN_PACKET_BUFFER;
-		PtrRespPacket->SPIBuffer.SpiNum = ptrPacket->SPIGetChar.SpiNum;
-		PtrRespPacket->SPIBuffer.Data[0] = ReadSPI();
-		USBSendPacket((unsigned char*)&PtrRespPacket->RawData[0], sizeof(SPARTAN_3A_CONFIG_IN_PACKET));
-	}
-	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_PUT_CHAR)
-	{
-		WriteSPI(ptrPacket->SPIPutChar.Data);
-		USBSendStatus(STATUS_SUCCESS, ptrPacket->SPIPutChar.SpiNum, ptrPacket->RawPacket.Byte1);
-	}
-	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_SET_IO_DIR)
-	{
-		SPISetIODirection(ptrPacket->SetIODir.Io, ptrPacket->SetIODir.Direction);
-		USBSendStatus(STATUS_SUCCESS, ptrPacket->SetIODir.SpiNum, ptrPacket->RawPacket.Byte1);
-	}
-	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_SET_IO_VALUE)
-	{
-		SPISetIOValue(ptrPacket->SetIOValue.Io, ptrPacket->SetIOValue.Value);
-		USBSendStatus(STATUS_SUCCESS, ptrPacket->SetIOValue.SpiNum, ptrPacket->RawPacket.Byte1);
-	}
-	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_GET_IO_VALUE)
-	{
-		PtrRespPacket->SPIBuffer.Tilda = '~';
-		PtrRespPacket->SPIBuffer.PacketType = SPARTAN_3A_CONFIG_IN_PACKET_BUFFER;
-		PtrRespPacket->SPIBuffer.SpiNum = ptrPacket->GetIOValue.SpiNum;
-		PtrRespPacket->SPIBuffer.Data[0] = SPIGetIOValue(ptrPacket->GetIOValue.Io);
-		USBSendPacket((unsigned char*)&PtrRespPacket->RawData[0], sizeof(SPARTAN_3A_CONFIG_IN_PACKET));
-	}
-	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_PUTSTRING)
-	{
-		putbufSPI(&ptrPacket->SPIPutString.Data[0], ptrPacket->SPIPutString.Length);
-		USBSendStatus(STATUS_SUCCESS, ptrPacket->SetIOValue.SpiNum, ptrPacket->RawPacket.Byte1);
-	}
-}
-
-void USBSendStatus(SPARTAN_3A_CONFIG_STATUS Status, uint8_t SPINum, uint8_t ExecutedCmd)
-{
-	PtrRespPacket->Status.Tilda = '~';
-	PtrRespPacket->Status.PacketType = SPARTAN_3A_CONFIG_IN_PACKET_STATUS;
-	PtrRespPacket->Status.SpiNum = SPINum;
-	PtrRespPacket->Status.Status = (unsigned char)Status;
-	PtrRespPacket->Status.ExecutedCmd = ExecutedCmd;
-
-	USBSendPacket((unsigned char*)(char*)&PtrRespPacket->RawData[0], sizeof(SPARTAN_3A_CONFIG_IN_PACKET));
-}
-
-unsigned char USBSendPacket(unsigned char* data, unsigned char Size)
-{
-	if( Size > CDC_DATA_IN_EP_SIZE)
-	{
-		//This shouldn't happen ideally.
-		//return STATUS_FAIL_PACKET_SIZE_TOO_LARGE;
-		Size = CDC_DATA_IN_EP_SIZE;
-	}
-
-	putUSBUSART(SPI_CDC_PORT, (char*)data, Size);
-    return 0;
-}
-
-// Data arriving from USB.
-uint8_t usb_rx_buf[CDC_DATA_IN_EP_SIZE] = {0};
-uint8_t usb_rx_avail = 0;
+// Data arriving from USB. All messages are padded to 70 bytes.
+static uint8_t usb_rx_buf[64+6] = {0};
+static uint8_t usb_rx_avail = 0;
 
 void SpiFlashTask(void) {
-    uint8_t usb_bytes_read = getsUSBUSART(SPI_CDC_PORT, usb_rx_buf + usb_rx_avail, sizeof(usb_rx_buf) - usb_rx_avail);
-    if (usb_bytes_read) {
-        usb_rx_avail += usb_bytes_read;
-        if (usb_rx_avail == sizeof(usb_rx_buf)) {
-            ServicePacket((PTR_SPARTAN_3A_CONFIG_OUT_PACKET)usb_rx_buf);
-            usb_rx_avail = 0;
-        }
+    uint8_t bytes_read = getsUSBUSART(SPI_CDC_PORT, usb_rx_buf + usb_rx_avail, sizeof(usb_rx_buf) - usb_rx_avail);
+    if (bytes_read) {
+        usb_rx_avail += bytes_read;
+    }
+    if (usb_rx_avail == sizeof(usb_rx_buf)) {
+        ServicePacket((PTR_SPARTAN_3A_CONFIG_OUT_PACKET)usb_rx_buf);
+        usb_rx_avail = 0;
+        return;
     }
 }
