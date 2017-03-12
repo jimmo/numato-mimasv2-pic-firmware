@@ -9,7 +9,9 @@ This replaces the factory firmware and addresses two main limitations:
 
 ## Building instructions:
 
-Get the necessary software:
+There's a prebuilt .hex file in the `prebuilt` directory.
+
+Otherwise, get the necessary software:
 
 - PIC development tools
   - [MPLAB.X](http://microchip.com/mplabx)
@@ -42,7 +44,7 @@ Device family: PIC18
 Use mphidflash to flash the new code:
 
 ```
-$ ./mphidflash-1.6-linux-64 -w ~/src/github.com/jimmo/numato-mimasv2-pic-firmware/dist/XC8_18F14K50/production/numato-mimasv2-pic-firmware.production.hex
+$ ./mphidflash-1.6-linux-64 -w prebuilt/numato-mimasv2-pic-firmware.production.hex
 ```
 
 Remove the jumper and power-cycle the board.
