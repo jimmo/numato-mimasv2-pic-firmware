@@ -17,18 +17,20 @@ void EchoTask(uint8_t cdc_port) {
         return;
     }
 
-    uint8_t b;
-    uint8_t bytes_read = getsUSBUSART(cdc_port, &b, 1);
+    uint8_t buf[100];
+    uint8_t bytes_read = getsUSBUSART(cdc_port, buf, sizeof(buf));
 
     if (bytes_read == 0) {
         return;
     }
 
-    if (b != 0x0a && b != 0x0d) {
-        b += cdc_port;
+    for (uint8_t i = 0; i < bytes_read; ++i) {
+        if (buf[i] != 0x0a && buf[i] != 0x0d) {
+            buf[i] += cdc_port;
+        }
     }
 
-    putUSBUSART(cdc_port, &b, 1);
+    putUSBUSART(cdc_port, buf, bytes_read);
 }
 
 void main(void) {
