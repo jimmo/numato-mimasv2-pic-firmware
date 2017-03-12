@@ -32,32 +32,30 @@
 #define	CDONE_TRIS		TRISCbits.TRISC0
 #define	INITB_TRIS		TRISCbits.TRISC5
 
-
-char USB_Out_Buffer[CDC_DATA_OUT_EP_SIZE];
-PTR_SPARTAN_3A_CONFIG_IN_PACKET PtrRespPacket = (PTR_SPARTAN_3A_CONFIG_IN_PACKET) USB_Out_Buffer;
-
-void SPIOpen(unsigned char SyncMode, unsigned char BusMode, unsigned char SmpPhase);
-
-void SPISetIODirection(SPARTAN_3A_CONFIG_IO_PIN Pin, unsigned char Direction);
-void SPISetIOValue(SPARTAN_3A_CONFIG_IO_PIN Pin, unsigned char Value);
-unsigned char SPIGetIOValue(SPARTAN_3A_CONFIG_IO_PIN Pin);
+#define IO_DIRECTION_OUT		0
+#define IO_DIRECTION_IN			1
 
 
-void ServicePacket(PTR_SPARTAN_3A_CONFIG_OUT_PACKET ptrPacket);
-unsigned char USBSendPacket(unsigned char* data, unsigned char Size);
-void USBSendStatus(SPARTAN_3A_CONFIG_STATUS Status, uint8_t SPINum, uint8_t ExecutedCmd);
 
-void SPIOpen(unsigned char SyncMode, unsigned char BusMode, unsigned char SmpPhase)
+void Delay1KTCYx(unsigned char unit)
 {
-		//OpenSPI(SyncMode, BusMode, SmpPhase);
+	do {
+		_delay(1000);
+	} while(--unit != 0);
+}
 
+void SpiEnable(uint8_t enable)
+{
+    if (enable) {
 		//Set SDO SPI Pin directions
 		ANSELHbits.ANS9 = 0;// RC7 as digital IO
 		ANSELHbits.ANS10 = 0;// RB4 as digital IO
 
-		TRISCbits.TRISC7 = 0;  // MOSI
-		TRISBbits.TRISB4 = 1;  // MISO
-		TRISBbits.TRISB6 = 0;  // SCK
+		SI_TRIS = IO_DIRECTION_OUT;
+		SO_TRIS = IO_DIRECTION_IN;
+		CLK_TRIS = IO_DIRECTION_OUT;
+        CS_TRIS = IO_DIRECTION_OUT;
+        CS_LATCH = 1;
 
 		//SSPSTAT settings
 		SSPSTATbits.SMP = 0; //Sample at middle
@@ -78,120 +76,20 @@ void SPIOpen(unsigned char SyncMode, unsigned char BusMode, unsigned char SmpPha
 
 		//Enable MSSP
 		SSPCON1bits.SSPEN = 1;
+
+        Delay1KTCYx(100);
+    } else {
+        CloseSPI();
+
+        CS_LATCH = 1;
+
+		SI_TRIS = IO_DIRECTION_IN;
+		SO_TRIS = IO_DIRECTION_IN;
+		CLK_TRIS = IO_DIRECTION_IN;
+        CS_TRIS = IO_DIRECTION_IN;
+    }
 }
-
-void SPISetIODirection(SPARTAN_3A_CONFIG_IO_PIN Pin, unsigned char Direction)
-{
-		switch(Pin)
-		{
-			case SPARTAN_3A_CONFIG_IO_PIN_SI:
-				SI_TRIS	 = Direction;
-			break;
-
-			case SPARTAN_3A_CONFIG_IO_PIN_SO:
-				SO_TRIS	= Direction;
-			break;
-
-			case SPARTAN_3A_CONFIG_IO_PIN_CS:
-				CS_TRIS	 = Direction;
-			break;
-
-			case SPARTAN_3A_CONFIG_IO_PIN_CLK:
-				CLK_TRIS = Direction;
-			break;
-
-			case SPARTAN_3A_CONFIG_IO_PIN_PROGB:
-				PROGB_TRIS	= Direction;
-			break;
-
-			case SPARTAN_3A_CONFIG_IO_PIN_DONE:
-				CDONE_TRIS = Direction;
-			break;
-
-			case SPARTAN_3A_CONFIG_IO_PIN_INITB:
-				INITB_TRIS = Direction;
-			break;
-		}
-}
-
-void SPISetIOValue(SPARTAN_3A_CONFIG_IO_PIN Pin, unsigned char Value)
-{
-		switch(Pin)
-		{
-			case SPARTAN_3A_CONFIG_IO_PIN_SI:
-				SI_LATCH = Value;
-			break;
-
-			case SPARTAN_3A_CONFIG_IO_PIN_SO:
-				SO_LATCH = Value;
-			break;
-
-			case SPARTAN_3A_CONFIG_IO_PIN_CS:
-				CS_LATCH = Value;
-			break;
-
-			case SPARTAN_3A_CONFIG_IO_PIN_CLK:
-				CLK_LATCH = Value;
-			break;
-
-			case SPARTAN_3A_CONFIG_IO_PIN_PROGB:
-				PROGB_LATCH = Value;
-			break;
-
-			case SPARTAN_3A_CONFIG_IO_PIN_DONE:
-				CDONE_LATCH = Value;
-			break;
-
-			case SPARTAN_3A_CONFIG_IO_PIN_INITB:
-				INITB_LATCH = Value;
-			break;
-		}
-}
-
-unsigned char SPIGetIOValue(SPARTAN_3A_CONFIG_IO_PIN Pin)
-{
-	unsigned char tmpValue = 0xFF;
-		switch(Pin)
-		{
-			case SPARTAN_3A_CONFIG_IO_PIN_SI:
-				tmpValue = SI_PORT;
-			break;
-
-			case SPARTAN_3A_CONFIG_IO_PIN_SO:
-				tmpValue = SO_PORT;
-			break;
-
-			case SPARTAN_3A_CONFIG_IO_PIN_CS:
-				tmpValue = CS_PORT;
-			break;
-
-			case SPARTAN_3A_CONFIG_IO_PIN_CLK:
-				tmpValue = CLK_PORT;
-			break;
-
-			case SPARTAN_3A_CONFIG_IO_PIN_PROGB:
-				tmpValue = PROGB_PORT;
-			break;
-
-			case SPARTAN_3A_CONFIG_IO_PIN_DONE:
-				tmpValue = CDONE_PORT;
-			break;
-
-			case SPARTAN_3A_CONFIG_IO_PIN_INITB:
-				tmpValue = INITB_PORT;
-			break;
-		}
-
-	return tmpValue;
-}
-
-void
-Delay1KTCYx(unsigned char unit)
-{
-	do {
-		_delay(1000);
-	} while(--unit != 0);
-}
+/*
 
 void ServicePacket(PTR_SPARTAN_3A_CONFIG_OUT_PACKET ptrPacket)
 {
@@ -280,34 +178,82 @@ unsigned char USBSendPacket(unsigned char* data, unsigned char Size)
     return 0;
 }
 
+*/
+
+#define SPI_COMMAND_PROGRAMMING_MODE 1
+#define SPI_COMMAND_GET_FLASH_ID 2
+
+typedef struct {
+    uint8_t magic;
+    uint8_t cmd;
+    uint16_t size;
+    uint8_t status;
+    uint8_t data[128];
+} SPI_COMMAND;
+
+void ProcessCommand(SPI_COMMAND* cmd) {
+    switch(cmd->cmd) {
+        case SPI_COMMAND_PROGRAMMING_MODE:
+            if (cmd->data[0]) {
+                PROGB_TRIS = IO_DIRECTION_OUT;
+                PROGB_LATCH = 0;
+            } else {
+                PROGB_LATCH = 1;
+                PROGB_TRIS = IO_DIRECTION_IN;
+            }
+            cmd->status = 0;
+            cmd->size = 0;
+            break;
+        case SPI_COMMAND_GET_FLASH_ID:
+            SpiEnable(1);
+
+            CS_LATCH = 1;
+        Delay1KTCYx(100);
+            CS_LATCH = 0;
+        Delay1KTCYx(100);
+            WriteSPI(0x9f);
+        Delay1KTCYx(100);
+            getsSPI(cmd->data, 3);
+            cmd->status = 0;
+            cmd->size = 3;
+            CS_LATCH = 1;
+        Delay1KTCYx(100);
+
+            SpiEnable(0);
+            break;
+        default:
+            break;
+    }
+
+    putUSBUSART(SPI_CDC_PORT, (uint8_t*)cmd, cmd->size+5);
+}
+
 void SpiFlashInit(void) {
     //Set all pins except PROGB as inputs
-	SPISetIODirection(SPARTAN_3A_CONFIG_IO_PIN_SI, IO_DIRECTION_IN);
-	SPISetIODirection(SPARTAN_3A_CONFIG_IO_PIN_SO, IO_DIRECTION_IN);
-	SPISetIODirection(SPARTAN_3A_CONFIG_IO_PIN_CS, IO_DIRECTION_IN);
-	SPISetIODirection(SPARTAN_3A_CONFIG_IO_PIN_CLK, IO_DIRECTION_IN);
-	SPISetIODirection(SPARTAN_3A_CONFIG_IO_PIN_DONE, IO_DIRECTION_IN);
-	SPISetIODirection(SPARTAN_3A_CONFIG_IO_PIN_INITB, IO_DIRECTION_IN);
-
-	SPISetIODirection(SPARTAN_3A_CONFIG_IO_PIN_PROGB, IO_DIRECTION_OUT);
+    SI_TRIS = IO_DIRECTION_IN;
+    SO_TRIS = IO_DIRECTION_IN;
+    CS_TRIS = IO_DIRECTION_IN;
+    CLK_TRIS = IO_DIRECTION_IN;
+    CDONE_TRIS = IO_DIRECTION_IN;
+    INITB_TRIS = IO_DIRECTION_IN;
 
 	//Pull PROG_B Low for a few milliseconds to start configuration
-	SPISetIOValue(SPARTAN_3A_CONFIG_IO_PIN_PROGB, 0);
-	Delay1KTCYx(100);
-	SPISetIOValue(SPARTAN_3A_CONFIG_IO_PIN_PROGB, 1);
-
-	//Leave PROGB in HiZ state
-	SPISetIODirection(SPARTAN_3A_CONFIG_IO_PIN_PROGB, IO_DIRECTION_IN);
+    PROGB_TRIS = IO_DIRECTION_OUT;
+    PROGB_LATCH = 0;
+    Delay1KTCYx(100);
+	PROGB_LATCH = 1;
+    PROGB_TRIS = IO_DIRECTION_IN;
 }
 
 // Data arriving from USB. All messages are padded to 70 bytes.
-static uint8_t usb_rx_buf[64+6] = {0};
-static uint8_t usb_rx_avail = 0;
+static uint8_t usb_rx_buf[sizeof(SPI_COMMAND)] = {0};
+static uint16_t usb_rx_avail = 0;
 
 void SpiFlashTask(void) {
-    if (usb_rx_avail >= sizeof(usb_rx_buf)) {
-        if (USBUSARTIsTxTrfReady(SPI_CDC_PORT)) {
-            ServicePacket((PTR_SPARTAN_3A_CONFIG_OUT_PACKET)usb_rx_buf);
+    if (usb_rx_avail >= 5) {
+        SPI_COMMAND* cmd = (SPI_COMMAND*)usb_rx_buf;
+        if (cmd->magic == '~' && usb_rx_avail == cmd->size + 5 && USBUSARTIsTxTrfReady(SPI_CDC_PORT)) {
+            ProcessCommand(cmd);
             usb_rx_avail = 0;
         }
         return;

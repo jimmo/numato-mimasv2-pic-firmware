@@ -5,6 +5,8 @@
 
 #include "usb.h"
 
+/*
+
 #define IO_DIRECTION_OUT		0
 #define IO_DIRECTION_IN			1
 
@@ -188,7 +190,7 @@ typedef union _SPARTAN_3A_CONFIG_IN_PACKET{
 	}SPIBuffer;
 
 }SPARTAN_3A_CONFIG_IN_PACKET, *PTR_SPARTAN_3A_CONFIG_IN_PACKET;
-
+*/
 void SpiFlashInit(void);
 
 void SpiFlashTask(void);
