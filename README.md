@@ -48,3 +48,8 @@ $ ./mphidflash-1.6-linux-64 -w prebuilt/numato-mimasv2-pic-firmware.production.h
 ```
 
 Remove the jumper and power-cycle the board.
+
+## TODO
+
+- Make SPI flash programming faster. xmodem?
+- Make the FPGA UART speed detect automatically from the host.
