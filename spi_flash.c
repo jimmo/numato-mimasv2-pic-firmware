@@ -55,9 +55,9 @@ void SPIOpen(unsigned char SyncMode, unsigned char BusMode, unsigned char SmpPha
 		ANSELHbits.ANS9 = 0;// RC7 as digital IO
 		ANSELHbits.ANS10 = 0;// RB4 as digital IO
 
-		TRISCbits.TRISC7 = 0;
-		TRISBbits.TRISB4 = 1;
-		TRISBbits.TRISB6 = 0;
+		TRISCbits.TRISC7 = 0;  // MOSI
+		TRISBbits.TRISB4 = 1;  // MISO
+		TRISBbits.TRISB6 = 0;  // SCK
 
 		//SSPSTAT settings
 		SSPSTATbits.SMP = 0; //Sample at middle
@@ -305,13 +305,16 @@ static uint8_t usb_rx_buf[64+6] = {0};
 static uint8_t usb_rx_avail = 0;
 
 void SpiFlashTask(void) {
-    uint8_t bytes_read = getsUSBUSART(SPI_CDC_PORT, usb_rx_buf + usb_rx_avail, sizeof(usb_rx_buf) - usb_rx_avail);
-    if (bytes_read) {
-        usb_rx_avail += bytes_read;
-    }
-    if (usb_rx_avail == sizeof(usb_rx_buf)) {
-        ServicePacket((PTR_SPARTAN_3A_CONFIG_OUT_PACKET)usb_rx_buf);
-        usb_rx_avail = 0;
+    if (usb_rx_avail >= sizeof(usb_rx_buf)) {
+        if (USBUSARTIsTxTrfReady(SPI_CDC_PORT)) {
+            ServicePacket((PTR_SPARTAN_3A_CONFIG_OUT_PACKET)usb_rx_buf);
+            usb_rx_avail = 0;
+        }
         return;
+    } else {
+        uint8_t bytes_read = getsUSBUSART(SPI_CDC_PORT, usb_rx_buf + usb_rx_avail, sizeof(usb_rx_buf) - usb_rx_avail);
+        if (bytes_read && usb_rx_buf[0] == '~') {
+            usb_rx_avail += bytes_read;
+        }
     }
 }
