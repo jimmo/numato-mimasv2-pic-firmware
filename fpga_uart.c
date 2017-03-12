@@ -35,7 +35,7 @@ void FpgaUartInit(void) {
     // At 48MHz clock, with BRGH=BRG16=1.
     // 19200  : 624 (0x0270)
     // 115200 : 103 (0x0067)
-    SPBRG = 0x71;
+    SPBRG = 0x70;
     SPBRGH = 0x02;
 
     // Read a byte.
