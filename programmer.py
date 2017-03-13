@@ -112,19 +112,16 @@ while True:
     else:
       small_write(addr, image_data[addr:addr+16])
       addr += 16
-  print('Programming flash...0x{:08x} {:02d}%'.format(addr, 100*addr//image_size))
-  print('\nDone. Verifying...')
+  print('Programming flash... 100%.                  \nVerifying...')
 
   for addr in range(0, image_size, 0x100):
     x = checksum_page(addr)
     y = 0
     for i in range(addr, addr+0x100):
-      if i >= image_size:
-        y += 0xff
-      else:
+      if i < image_size:
         y += image_data[i]
     if y != x:
-      print('Checksum failure at 0x{:x}'.format(addr))
+      print('Checksum failure at 0x{:x} {} {}'.format(addr, x, y))
 
   break
 
