@@ -1,11 +1,21 @@
 import serial
 import struct
 
+SPI_COMMAND_PROGRAMMING_MODE = 1
+SPI_COMMAND_GET_FLASH_ID = 2
+SPI_COMMAND_ERASE = 3
+SPI_COMMAND_PAGE_WRITE_START = 4
+SPI_COMMAND_PAGE_WRITE_END = 5
+SPI_COMMAND_PAGE_WRITE_DATA = 6
+
 port = serial.Serial('/dev/ttyACM0', 115200)
 
 def send_command(cmd, data, resp_len):
-  port.write(struct.pack('BBHB', ord('~'), cmd, len(data), 0) + data)
+  packet = struct.pack('BBHB', ord('~'), cmd, len(data), 0) + data
+  #print('tx', packet)
+  port.write(packet)
   result = port.read(resp_len + 5)
+  #print('rx', result)
   _, cmd_reply, len_reply, status_reply = struct.unpack('BBHB', result[0:5])
   if cmd_reply != cmd:
     print('Unexpected reply.')
@@ -13,23 +23,66 @@ def send_command(cmd, data, resp_len):
   if len_reply != resp_len:
     print('Unexpected reply length.')
     return 1, b''
+  if status_reply != 0:
+    print('Error')
   return status_reply, result[5:]
 
 def programming_mode(enable):
   if enable:
-    send_command(1, struct.pack('B', 1), 0)
+    send_command(SPI_COMMAND_PROGRAMMING_MODE, struct.pack('B', 1), 0)
   else:
-    send_command(1, struct.pack('B', 0), 0)
+    send_command(SPI_COMMAND_PROGRAMMING_MODE, struct.pack('B', 0), 0)
 
 def get_spi_flash_id():
-  status, flash_id = send_command(2, b'', 3)
+  status, flash_id = send_command(SPI_COMMAND_GET_FLASH_ID, b'', 3)
   return flash_id
 
+def erase_spi_flash(image_size):
+  image_size |= 0xffff
+  send_command(SPI_COMMAND_ERASE, struct.pack('i', image_size), 0)
+
+def page_write_start(addr):
+  send_command(SPI_COMMAND_PAGE_WRITE_START, struct.pack('i', addr), 0)
+
+def page_write_end():
+  send_command(SPI_COMMAND_PAGE_WRITE_END, b'', 0)
+
+def page_write_data(data):
+  if len(data) < 0x100:
+    data += b'\x00' * (0x100-len(data))
+  write_size = 24
+  for i in range(0, 0x100, write_size):
+    send_command(SPI_COMMAND_PAGE_WRITE_DATA, data[i:i+write_size], 0)
+
 programming_mode(True)
-if get_spi_flash_id() == b'\x20\x20\x15':
-  print('Found Micron M25P16.')
-else:
-  print('Invalid/unknown flash id.')
+while True:
+  if get_spi_flash_id() == b'\x20\x20\x15':
+    print('Found Micron M25P16.')
+  else:
+    print('Invalid/unknown flash id.')
+    break
+
+
+  image = open('build/mimasv2_base_lm32/flash.bin', 'rb')
+  image.seek(0, 2)
+  image_size = image.tell()
+  image.seek(0, 0)
+  image_data = image.read(image_size)
+  image.close()
+
+  print('Erasing flash...')
+  erase_spi_flash(image_size)
+
+  addr = 0
+  while addr < image_size:
+    print('Programming flash...0x{:08x} {:02d}%\r'.format(addr, 100*addr//image_size), end='')
+    page_write_start(addr)
+    page_write_data(image_data[addr:addr+0x100])
+    page_write_end()
+    addr += 0x100
+
+  break
+
 programming_mode(False)
 
 port.close()
