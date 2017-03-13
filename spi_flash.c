@@ -77,7 +77,7 @@ void SpiEnable(uint8_t enable)
 		//Enable MSSP
 		SSPCON1bits.SSPEN = 1;
 
-        Delay1KTCYx(100);
+        Delay1KTCYx(1);
     } else {
         CloseSPI();
 
@@ -89,99 +89,33 @@ void SpiEnable(uint8_t enable)
         CS_TRIS = IO_DIRECTION_IN;
     }
 }
-/*
 
-void ServicePacket(PTR_SPARTAN_3A_CONFIG_OUT_PACKET ptrPacket)
-{
-    static char buf[14];
-	//memset(&Packet, 0, sizeof(SPARTAN_3A_CONFIG_IN_PACKET));
-	if(ptrPacket->RawPacket.Byte0 != '~')
-	{
-		//Incorrect packet delimiter
-        return;
-	}
-
-    if (ptrPacket->SpiOpen.SpiNum != 1) {
-        return;
+void ChipSelect(uint8_t sel) {
+    if (sel) {
+            CS_LATCH = 1;
+            _delay(100);
+            CS_LATCH = 0;
+            _delay(100);
+    } else {
+            CS_LATCH = 1;
+            _delay(100);
     }
-
-	if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_OPEN)
-	{
-        SPIOpen(ptrPacket->SpiOpen.SyncMode, ptrPacket->SpiOpen.BusMode, ptrPacket->SpiOpen.SmpPhase);
-		USBSendStatus(STATUS_SUCCESS, ptrPacket->SpiOpen.SpiNum, ptrPacket->RawPacket.Byte1);
-	}
-	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_CLOSE)
-	{
-        CloseSPI();
-		USBSendStatus(STATUS_SUCCESS, ptrPacket->SPIClose.SpiNum, ptrPacket->RawPacket.Byte1);
-	}
-	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_GETSTRING)
-	{
-        PtrRespPacket->SPIBuffer.Tilda = '~';
-		PtrRespPacket->SPIBuffer.PacketType = SPARTAN_3A_CONFIG_IN_PACKET_BUFFER;
-		PtrRespPacket->SPIBuffer.SpiNum = ptrPacket->SPIGetString.SpiNum;
-		getsSPI(&PtrRespPacket->SPIBuffer.Data[0], ptrPacket->SPIGetString.Length);
-		USBSendPacket((unsigned char*)&PtrRespPacket->RawData[0], sizeof(SPARTAN_3A_CONFIG_IN_PACKET));
-	}
-	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_PUTSTRING)
-	{
-        putbufSPI(&ptrPacket->SPIPutString.Data[0], ptrPacket->SPIPutString.Length);
-		USBSendStatus(STATUS_SUCCESS, ptrPacket->SPIPutString.SpiNum, ptrPacket->RawPacket.Byte1);
-	}
-	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_GET_CHAR)
-	{
-        PtrRespPacket->SPIBuffer.Tilda = '~';
-		PtrRespPacket->SPIBuffer.PacketType = SPARTAN_3A_CONFIG_IN_PACKET_BUFFER;
-		PtrRespPacket->SPIBuffer.SpiNum = ptrPacket->SPIGetChar.SpiNum;
-		PtrRespPacket->SPIBuffer.Data[0] = ReadSPI();
-		USBSendPacket((unsigned char*)&PtrRespPacket->RawData[0], sizeof(SPARTAN_3A_CONFIG_IN_PACKET));
-	}
-	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_PUT_CHAR)
-	{
-        WriteSPI(ptrPacket->SPIPutChar.Data);
-		USBSendStatus(STATUS_SUCCESS, ptrPacket->SPIPutChar.SpiNum, ptrPacket->RawPacket.Byte1);
-	}
-	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_SET_IO_DIR)
-	{
-        SPISetIODirection(ptrPacket->SetIODir.Io, ptrPacket->SetIODir.Direction);
-		USBSendStatus(STATUS_SUCCESS, ptrPacket->SetIODir.SpiNum, ptrPacket->RawPacket.Byte1);
-	}
-	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_SET_IO_VALUE)
-	{
-        SPISetIOValue(ptrPacket->SetIOValue.Io, ptrPacket->SetIOValue.Value);
-		USBSendStatus(STATUS_SUCCESS, ptrPacket->SetIOValue.SpiNum, ptrPacket->RawPacket.Byte1);
-	}
-	else if(ptrPacket->RawPacket.Byte1 == SPARTAN_3A_CONFIG_OUT_PACKET_SPI_GET_IO_VALUE)
-	{
-        PtrRespPacket->SPIBuffer.Tilda = '~';
-		PtrRespPacket->SPIBuffer.PacketType = SPARTAN_3A_CONFIG_IN_PACKET_BUFFER;
-		PtrRespPacket->SPIBuffer.SpiNum = ptrPacket->GetIOValue.SpiNum;
-		PtrRespPacket->SPIBuffer.Data[0] = SPIGetIOValue(ptrPacket->GetIOValue.Io);
-		USBSendPacket((unsigned char*)&PtrRespPacket->RawData[0], sizeof(SPARTAN_3A_CONFIG_IN_PACKET));
-	}
 }
 
-void USBSendStatus(SPARTAN_3A_CONFIG_STATUS Status, uint8_t SPINum, uint8_t ExecutedCmd)
-{
-	PtrRespPacket->Status.Tilda = '~';
-	PtrRespPacket->Status.PacketType = SPARTAN_3A_CONFIG_IN_PACKET_STATUS;
-	PtrRespPacket->Status.SpiNum = SPINum;
-	PtrRespPacket->Status.Status = (unsigned char)Status;
-	PtrRespPacket->Status.ExecutedCmd = ExecutedCmd;
-
-	USBSendPacket((unsigned char*)(char*)&PtrRespPacket->RawData[0], sizeof(SPARTAN_3A_CONFIG_IN_PACKET));
+uint8_t GetSpiFlashStatus() {
+    ChipSelect(1);
+    WriteSPI(0x05);
+    uint8_t result = ReadSPI();
+    ChipSelect(0);
+    return result;
 }
-
-unsigned char USBSendPacket(unsigned char* data, unsigned char Size)
-{
-	putUSBUSART(SPI_CDC_PORT, (char*)data, Size);
-    return 0;
-}
-
-*/
 
 #define SPI_COMMAND_PROGRAMMING_MODE 1
 #define SPI_COMMAND_GET_FLASH_ID 2
+#define SPI_COMMAND_ERASE 3
+#define SPI_COMMAND_PAGE_WRITE_START 4
+#define SPI_COMMAND_PAGE_WRITE_END 5
+#define SPI_COMMAND_PAGE_WRITE_DATA 6
 
 typedef struct {
     uint8_t magic;
@@ -207,20 +141,87 @@ void ProcessCommand(SPI_COMMAND* cmd) {
         case SPI_COMMAND_GET_FLASH_ID:
             SpiEnable(1);
 
-            CS_LATCH = 1;
-        Delay1KTCYx(100);
-            CS_LATCH = 0;
-        Delay1KTCYx(100);
+            ChipSelect(1);
             WriteSPI(0x9f);
-        Delay1KTCYx(100);
             getsSPI(cmd->data, 3);
             cmd->status = 0;
             cmd->size = 3;
-            CS_LATCH = 1;
-        Delay1KTCYx(100);
+            ChipSelect(0);
 
             SpiEnable(0);
             break;
+        case SPI_COMMAND_ERASE:
+            SpiEnable(1);
+
+            // Write enable.
+            ChipSelect(1);
+            WriteSPI(0x06);
+            ChipSelect(0);
+
+            uint32_t* data_limit = (uint32_t*)cmd->data;
+
+            // Erase sector starting at address.
+            for (uint32_t addr = 0; addr < *data_limit; addr += 0x10000) {
+                ChipSelect(1);
+                WriteSPI(0xd8);
+                uint8_t* addr_bytes = &addr;
+                WriteSPI(addr_bytes[2]);
+                WriteSPI(addr_bytes[1]);
+                WriteSPI(addr_bytes[0]);
+                ChipSelect(0);
+
+                while (GetSpiFlashStatus() & 1) {
+                    _delay(100);
+                }
+            }
+
+            // Write disable.
+            ChipSelect(1);
+            WriteSPI(0x04);
+            ChipSelect(0);
+
+            cmd->status = 0;
+            cmd->size = 0;
+
+            SpiEnable(0);
+            break;
+        case SPI_COMMAND_PAGE_WRITE_START:
+            SpiEnable(1);
+
+            // Write enable.
+            ChipSelect(1);
+            WriteSPI(0x06);
+            ChipSelect(0);
+
+            ChipSelect(1);
+            WriteSPI(0x02);
+            WriteSPI(cmd->data[2]);
+            WriteSPI(cmd->data[1]);
+            WriteSPI(cmd->data[0]);
+
+            cmd->status = 0;
+            cmd->size = 0;
+            break;
+        case SPI_COMMAND_PAGE_WRITE_END:
+            ChipSelect(0);
+            while (GetSpiFlashStatus() & 1) {
+                _delay(100);
+            }
+
+            // Write disable.
+            ChipSelect(1);
+            WriteSPI(0x04);
+            ChipSelect(0);
+
+            SpiEnable(0);
+
+            cmd->status = 0;
+            cmd->size = 0;
+            break;
+        case SPI_COMMAND_PAGE_WRITE_DATA:
+            putbufSPI(cmd->data, cmd->size);
+            cmd->status = 0;
+            cmd->size = 0;
         default:
             break;
     }

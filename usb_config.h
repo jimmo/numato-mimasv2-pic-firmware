@@ -47,7 +47,7 @@
 
 #define CDC_NUM_PORTS           2
 
-// This defines the size of the tx/rx buffers.
+// This defines the size of the rx/tx buffers.
 #define CDC_DATA_OUT_EP_SIZE    64/CDC_NUM_PORTS
 #define CDC_DATA_IN_EP_SIZE     64/CDC_NUM_PORTS
 
