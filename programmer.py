@@ -1,5 +1,6 @@
 import serial
 import struct
+import argparse
 
 SPI_COMMAND_PROGRAMMING_MODE = 1
 SPI_COMMAND_GET_FLASH_ID = 2
@@ -8,7 +9,14 @@ SPI_COMMAND_PAGE_WRITE_START = 4
 SPI_COMMAND_PAGE_WRITE_END = 5
 SPI_COMMAND_PAGE_WRITE_DATA = 6
 
-port = serial.Serial('/dev/ttyACM0', 115200)
+parser = argparse.ArgumentParser(description="Program a PIC")
+parser.add_argument('--uart', help="Path to UART device", default='/dev/ttyACM0')
+parser.add_argument('--baudrate', help="Baudrate of UART device", default=115200, type=int)
+parser.add_argument('--filename', help="Full path to binary file", default='build/mimasv2_base_lm32/flash.bin')
+
+args = parser.parse_args()
+
+port = serial.Serial(args.uart, args.baudrate)
 
 def send_command(cmd, data, resp_len):
   packet = struct.pack('BBHB', ord('~'), cmd, len(data), 0) + data
@@ -63,7 +71,7 @@ while True:
     break
 
 
-  image = open('build/mimasv2_base_lm32/flash.bin', 'rb')
+  image = open(args.filename, 'rb')
   image.seek(0, 2)
   image_size = image.tell()
   image.seek(0, 0)
