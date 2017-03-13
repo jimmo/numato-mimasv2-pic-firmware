@@ -116,13 +116,15 @@ uint8_t GetSpiFlashStatus() {
 #define SPI_COMMAND_PAGE_WRITE_START 4
 #define SPI_COMMAND_PAGE_WRITE_END 5
 #define SPI_COMMAND_PAGE_WRITE_DATA 6
+#define SPI_COMMAND_WRITE 7
+#define SPI_COMMAND_CHECKSUM_PAGE 8
 
 typedef struct {
     uint8_t magic;
     uint8_t cmd;
     uint16_t size;
     uint8_t status;
-    uint8_t data[128];
+    uint8_t data[32];
 } SPI_COMMAND;
 
 void ProcessCommand(SPI_COMMAND* cmd) {
@@ -138,6 +140,7 @@ void ProcessCommand(SPI_COMMAND* cmd) {
             cmd->status = 0;
             cmd->size = 0;
             break;
+
         case SPI_COMMAND_GET_FLASH_ID:
             SpiEnable(1);
 
@@ -150,29 +153,34 @@ void ProcessCommand(SPI_COMMAND* cmd) {
 
             SpiEnable(0);
             break;
+
         case SPI_COMMAND_ERASE:
             SpiEnable(1);
 
-            // Write enable.
-            ChipSelect(1);
-            WriteSPI(0x06);
-            ChipSelect(0);
-
-            uint32_t* data_limit = (uint32_t*)cmd->data;
+            uint32_t data_limit = 0;
+            data_limit |= cmd->data[2];
+            data_limit <<= 8;
+            data_limit |= cmd->data[1];
+            data_limit <<= 8;
+            data_limit |= cmd->data[0];
 
             // Erase sector starting at address.
-            for (uint32_t addr = 0; addr < *data_limit; addr += 0x10000) {
+            for (uint32_t addr = 0; addr < data_limit; addr += 0x10000) {
+                // Write enable.
                 ChipSelect(1);
-                WriteSPI(0xd8);
-                uint8_t* addr_bytes = &addr;
-                WriteSPI(addr_bytes[2]);
-                WriteSPI(addr_bytes[1]);
-                WriteSPI(addr_bytes[0]);
+                WriteSPI(0x06);
                 ChipSelect(0);
 
-                while (GetSpiFlashStatus() & 1) {
+                ChipSelect(1);
+                WriteSPI(0xd8);
+                WriteSPI((addr>>16) & 0xff);
+                WriteSPI((addr>>8) & 0xff);
+                WriteSPI((addr>>0) & 0xff);
+                ChipSelect(0);
+
+                do {
                     _delay(100);
-                }
+                } while (GetSpiFlashStatus() & 1);
             }
 
             // Write disable.
@@ -185,6 +193,7 @@ void ProcessCommand(SPI_COMMAND* cmd) {
 
             SpiEnable(0);
             break;
+
         case SPI_COMMAND_PAGE_WRITE_START:
             SpiEnable(1);
 
@@ -202,11 +211,13 @@ void ProcessCommand(SPI_COMMAND* cmd) {
             cmd->status = 0;
             cmd->size = 0;
             break;
+
         case SPI_COMMAND_PAGE_WRITE_END:
             ChipSelect(0);
-            while (GetSpiFlashStatus() & 1) {
+
+            do {
                 _delay(100);
-            }
+            } while (GetSpiFlashStatus() & 1);
 
             // Write disable.
             ChipSelect(1);
@@ -218,10 +229,69 @@ void ProcessCommand(SPI_COMMAND* cmd) {
             cmd->status = 0;
             cmd->size = 0;
             break;
+
         case SPI_COMMAND_PAGE_WRITE_DATA:
             putbufSPI(cmd->data, cmd->size);
             cmd->status = 0;
             cmd->size = 0;
+            break;
+
+        case SPI_COMMAND_WRITE:
+            SpiEnable(1);
+
+            // Write enable.
+            ChipSelect(1);
+            WriteSPI(0x06);
+            ChipSelect(0);
+
+            ChipSelect(1);
+            WriteSPI(0x02);
+            WriteSPI(cmd->data[2]);
+            WriteSPI(cmd->data[1]);
+            WriteSPI(cmd->data[0]);
+
+            putbufSPI(cmd->data+4, cmd->size-4);
+
+            ChipSelect(0);
+
+            do {
+            } while (GetSpiFlashStatus() & 1);
+
+            // Write disable.
+            ChipSelect(1);
+            WriteSPI(0x04);
+            ChipSelect(0);
+
+            SpiEnable(0);
+
+            cmd->status = 0;
+            cmd->size = 0;
+            break;
+
+
+        case SPI_COMMAND_CHECKSUM_PAGE:
+            SpiEnable(1);
+
+            ChipSelect(1);
+            WriteSPI(0x03);
+            WriteSPI(cmd->data[2]);
+            WriteSPI(cmd->data[1]);
+            WriteSPI(cmd->data[0]);
+
+            uint32_t* sum = (uint32_t*)cmd->data;
+            *sum = 0;
+            for (uint16_t i = 0; i < 256; ++i) {
+                *sum += ReadSPI();
+            }
+
+            ChipSelect(0);
+
+            cmd->status = 0;
+            cmd->size = 4;
+
+            SpiEnable(0);
+            break;
+
         default:
             break;
     }
@@ -246,7 +316,7 @@ void SpiFlashInit(void) {
     PROGB_TRIS = IO_DIRECTION_IN;
 }
 
-// Data arriving from USB. All messages are padded to 70 bytes.
+// Data arriving from USB.
 static uint8_t usb_rx_buf[sizeof(SPI_COMMAND)] = {0};
 static uint16_t usb_rx_avail = 0;
 
