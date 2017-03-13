@@ -13,7 +13,7 @@ parser = argparse.ArgumentParser(description="Program a PIC")
 parser.add_argument('--uart', help="Path to UART device", default='/dev/ttyACM0')
 parser.add_argument('--baudrate', help="Baudrate of UART device", default=115200, type=int)
 parser.add_argument('--filename', help="Full path to binary file", default='build/mimasv2_base_lm32/flash.bin')
-
+parser.add_argument('--force', help="USe force to continue without confirmation", action='store_true')
 args = parser.parse_args()
 
 port = serial.Serial(args.uart, args.baudrate)
@@ -70,13 +70,19 @@ while True:
     print('Invalid/unknown flash id.')
     break
 
+  try:
+    with open(args.filename, 'rb') as image:
+      image.seek(0, 2)
+      image_size = image.tell()
+      image.seek(0, 0)
+      image_data = image.read(image_size)
+  except (FileNotFoundError, PermissionError):
+    print("Could not access file at", args.filename)
+    break
 
-  image = open(args.filename, 'rb')
-  image.seek(0, 2)
-  image_size = image.tell()
-  image.seek(0, 0)
-  image_data = image.read(image_size)
-  image.close()
+  if not args.force:
+      while input("Type yes to continue or ctrl+C to abort: ") != "yes":
+          pass
 
   print('Erasing flash...')
   erase_spi_flash(image_size)
@@ -88,6 +94,7 @@ while True:
     page_write_data(image_data[addr:addr+0x100])
     page_write_end()
     addr += 0x100
+  print('Programming flash...0x{:08x} {:02d}%'.format(addr, 100*addr//image_size))
 
   break
 
