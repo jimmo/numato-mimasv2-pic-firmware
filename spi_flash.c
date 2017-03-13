@@ -93,12 +93,12 @@ void SpiEnable(uint8_t enable)
 void ChipSelect(uint8_t sel) {
     if (sel) {
             CS_LATCH = 1;
-            _delay(100);
+            _delay(1000);
             CS_LATCH = 0;
-            _delay(100);
+            _delay(1000);
     } else {
             CS_LATCH = 1;
-            _delay(100);
+            _delay(1000);
     }
 }
 
