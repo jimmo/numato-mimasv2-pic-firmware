@@ -21,14 +21,16 @@ else:
 def xmodem_getc(size, timeout=1):
   port.timeout = timeout
   r = port.read(size) or None
+  #print('Rx:', r)
   return r
 
 def xmodem_putc(data, timeout=1):
   port.timeout = timeout
+  #print('Tx:', data)
   return port.write(data)
 
 print('Sending {}'.format(sys.argv[1]))
-modem = xmodem.XMODEM(xmodem_getc, xmodem_putc)
+modem = xmodem.XMODEM(xmodem_getc, xmodem_putc, mode='xmodem1k')
 port.write(b'f\r')
 port.read(3)
 

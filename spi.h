@@ -3,13 +3,11 @@
 
 #include <xc.h>
 
-void CloseSPI(void);
-unsigned char DataRdySPI(void);
-void getsSPI( unsigned char *rdptr, unsigned char length );
-void OpenSPI( unsigned char sync_mode, unsigned char bus_mode, unsigned char smp_phase);
-void putsSPI( unsigned char *wrptr );
-void putbufSPI( unsigned char *wrptr, unsigned char length );
-unsigned char ReadSPI( void );
-signed char WriteSPI( unsigned char data_out );
+#include <stdint.h>
+
+void SpiRead(uint8_t* rdptr, uint8_t length);
+void SpiWrite(uint8_t* wrptr, uint8_t length);
+uint8_t SpiReadByte(void);
+uint8_t SpiWriteByte(uint8_t data_out);
 
 #endif

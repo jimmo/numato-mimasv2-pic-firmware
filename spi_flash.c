@@ -37,8 +37,8 @@
 #define IO_DIRECTION_IN			1
 
 
-const char MSG_PROMPT[] = "m> ";
-const int MSG_PROMPT_LEN = 3;
+const char MSG_PROMPT[] = "mimas> ";
+const int MSG_PROMPT_LEN = 7;
 const char MSG_VERSION[] = "1.0\r\n";
 const int MSG_VERSION_LEN = 5;
 const char MSG_UNKNOWN[] = "?\r\n";
@@ -49,6 +49,9 @@ const int XMODEM_RETRIES = 30;
 // Start of Header
 const uint8_t XMODEM_SOH = 0x01;
 
+// Start of Header (XMODEM-1k)
+const uint8_t XMODEM_STX = 0x02;
+
 // End of Transmission
 const uint8_t XMODEM_EOT = 0x04;
 
@@ -58,7 +61,7 @@ const uint8_t XMODEM_ACK = 0x06;
 // Not Acknowledge (or start xmodem)
 const uint8_t XMODEM_NACK = 0x15;
 
-// ASCII ?C? (or start xmodem-crc)
+// ASCII 'C' (or start xmodem-crc)
 const uint8_t XMODEM_C = 0x43;
 
 // Cancel xmodem mode.
@@ -84,118 +87,118 @@ uint8_t HexNybble(uint8_t x) {
     }
 }
 
-void SpiEnable(uint8_t enable) {
-    if (enable) {
-        PROGB_TRIS = IO_DIRECTION_OUT;
-        PROGB_LATCH = 0;
+void SpiEnable() {
+    // Set FPGA to programming mode.
+    PROGB_TRIS = IO_DIRECTION_OUT;
+    PROGB_LATCH = 0;
 
-        __delay_ms(1);
+    __delay_ms(1);
 
-        //Set SDO SPI Pin directions
-        ANSELHbits.ANS9 = 0; // RC7 as digital IO
-        ANSELHbits.ANS10 = 0; // RB4 as digital IO
+    //Set SDO SPI Pin directions
+    ANSELHbits.ANS9 = 0; // RC7 as digital IO
+    ANSELHbits.ANS10 = 0; // RB4 as digital IO
 
-        SI_TRIS = IO_DIRECTION_OUT;
-        SO_TRIS = IO_DIRECTION_IN;
-        CLK_TRIS = IO_DIRECTION_OUT;
-        CS_TRIS = IO_DIRECTION_OUT;
-        CS_LATCH = 1;
+    // Set SPI pin modes.
+    SI_TRIS = IO_DIRECTION_OUT;
+    SO_TRIS = IO_DIRECTION_IN;
+    CLK_TRIS = IO_DIRECTION_OUT;
+    CS_TRIS = IO_DIRECTION_OUT;
+    CS_LATCH = 1;
 
-        //SSPSTAT settings
-        SSPSTATbits.SMP = 0; // Sample at middle
-        SSPSTATbits.CKE = 1; // Transmit active->idle.
+    // Configure MSSP
+    SSPSTATbits.SMP = 0; // Sample at middle
+    SSPSTATbits.CKE = 1; // Transmit active->idle.
+    SSPCON1bits.CKP = 0;  // idle clock low.
+    SSPCON1bits.SSPM = 1; // Fosc / 16
 
-        //SSPCON1 Setings
-        SSPCON1bits.CKP = 0;  // idle clock low.
-        SSPCON1bits.SSPM = 1; // Fosc / 16
+    //Disable SSP interrupt
+    PIE1bits.SSPIE = 0;
 
-        //Disable SSP interrupt
-        PIE1bits.SSPIE = 0;
+    //Enable MSSP
+    SSPCON1bits.SSPEN = 1;
 
-        //Enable MSSP
-        SSPCON1bits.SSPEN = 1;
-
-        __delay_ms(1);
-    } else {
-        CloseSPI();
-
-        CS_LATCH = 1;
-
-        SI_TRIS = IO_DIRECTION_IN;
-        SO_TRIS = IO_DIRECTION_IN;
-        CLK_TRIS = IO_DIRECTION_IN;
-        CS_TRIS = IO_DIRECTION_IN;
-
-        __delay_ms(1);
-
-        PROGB_LATCH = 1;
-        PROGB_TRIS = IO_DIRECTION_IN;
-    }
+    __delay_ms(1);
 }
 
-void ChipSelect(uint8_t sel) {
-    if (sel) {
-        CS_LATCH = 1;
-        __delay_us(10);
-        CS_LATCH = 0;
-        __delay_us(10);
-    } else {
-        CS_LATCH = 1;
-        __delay_us(10);
-    }
+void SpiDisable() {
+    // Turn of MSSP.
+    SSPCON1bits.SSPEN = 0;
+
+    CS_LATCH = 1;
+
+    // Return SPI pins to hi-z.
+    SI_TRIS = IO_DIRECTION_IN;
+    SO_TRIS = IO_DIRECTION_IN;
+    CLK_TRIS = IO_DIRECTION_IN;
+    CS_TRIS = IO_DIRECTION_IN;
+
+    __delay_ms(1);
+
+    // Start FPGA.
+    PROGB_LATCH = 1;
+    PROGB_TRIS = IO_DIRECTION_IN;
+}
+
+void ChipSelect(uint8_t command) {
+    CS_LATCH = 1;
+    __delay_us(10);
+    CS_LATCH = 0;
+    __delay_us(10);
+    SpiWriteByte(command);
+}
+
+void ChipDeselect() {
+    CS_LATCH = 1;
+    __delay_us(10);
 }
 
 uint8_t GetSpiFlashStatus() {
-    ChipSelect(1);
-    WriteSPI(0x05);
-    uint8_t result = ReadSPI();
-    ChipSelect(0);
+    ChipSelect(0x05);
+    uint8_t result = SpiReadByte();
+    ChipDeselect();
     return result;
 }
 
 void WaitForWriteInProgress() {
+    // Deselects, then waits for the first bit of the status register to clear.
+    CS_LATCH = 1;
     do {
         __delay_us(10);
     } while (GetSpiFlashStatus() & 1);
 }
 
 void GetFlashId(void) {
-    SpiEnable(1);
+    SpiEnable();
 
-    ChipSelect(1);
-    WriteSPI(0x9f);
+    ChipSelect(0x9f);
     static uint8_t chipid[8];
     static int8_t i;
     chipid[6] = '\r';
     chipid[7] = '\n';
-    getsSPI(chipid, 3);
+    SpiRead(chipid, 3);
     for (i = 2; i >= 0; --i) {
         chipid[i * 2 + 1] = HexNybble(chipid[i] & 0xf);
         chipid[i * 2] = HexNybble((chipid[i] >> 4) & 0xf);
     }
-    ChipSelect(0);
+    ChipDeselect();
 
-    SpiEnable(0);
+    SpiDisable();
 
     WriteUsbSync(chipid, 8);
 }
 
 void BulkErase(void) {
-    SpiEnable(1);
+    SpiEnable();
 
     // Write enable.
-    ChipSelect(1);
-    WriteSPI(0x06);
-    ChipSelect(0);
+    ChipSelect(0x06);
+    ChipDeselect();
 
     // Bulk erase.
-    ChipSelect(1);
-    WriteSPI(0xc7);
-    ChipSelect(0);
-
+    ChipSelect(0xc7);
     WaitForWriteInProgress();
 
-    SpiEnable(0);
+    SpiDisable();
 }
 
 void SpiFlashInit(void) {
@@ -215,12 +218,10 @@ void SpiFlashInit(void) {
     PROGB_TRIS = IO_DIRECTION_IN;
 }
 
-unsigned short XModemCrc16(uint8_t* data, uint8_t len) {
+unsigned short XModemCrc16(uint8_t* data, uint8_t len, uint16_t crc) {
     const uint16_t poly = 0x1021;
-    static uint16_t crc;
     static uint8_t i, j;
 
-    crc = 0;
     for (i = 0; i < len; ++i) {
         uint16_t x = data[i];
         crc = (crc ^ x << 8);
@@ -235,28 +236,39 @@ unsigned short XModemCrc16(uint8_t* data, uint8_t len) {
     return crc;
 }
 
-static uint8_t buf[134];
-static const uint8_t* bufend = buf + sizeof (buf);
+void SendAddress(uint8_t command, uint32_t addr) {
+    ChipSelect(command);
+    SpiWriteByte((addr >> 16) & 0xff);
+    SpiWriteByte((addr >> 8) & 0xff);
+    SpiWriteByte((addr >> 0) & 0xff);
+}
+
+static uint8_t buf[CDC1_DATA_IN_EP_SIZE];
+static uint8_t verify_crc = 1;
 
 void Flash(void) {
     WriteUsbSync(&XMODEM_C, 1);
 
-    static uint8_t r, len;
+    static uint8_t r, len, valid, op_size, avail;
     static uint32_t write_addr;
-    static uint16_t t, seq, crc;
-    static uint8_t* next;
+    static uint32_t page_addr;
+    static uint16_t t, seq, frame_crc, data_crc, frame_size, remain, i, page_remaining;
+    static uint8_t* start;
 
     r = 0;
     t = tick_count;
-    next = buf;
     seq = 1;
     write_addr = 0;
 
     while (1) {
-        len = getsUSBUSART(SPI_CDC_PORT, next, bufend - next);
+        // Attempt to read first chunk of frame data.
+        len = getsUSBUSART(SPI_CDC_PORT, buf, sizeof(buf));
         if (len == 0) {
             if (r == 0) {
+                // Didn't get anything, and we haven't seen any frame yet, so
+                // maybe send a 'C' to indicate that we're ready for xmodem-crc.
                 if (tick_count - t > 100) {
+                    // 100 ticks is roughly 1 second since last 'C' sent.
                     WriteUsbSync(&XMODEM_C, 1);
                     t = tick_count;
                 }
@@ -265,93 +277,161 @@ void Flash(void) {
         }
 
         if (r == 0) {
-            SpiEnable(1);
+            // We have a (hopefully valid) first frame, switch to programming
+            // mode.
+            SpiEnable();
             r = 1;
         }
-        next += len;
-        if (next > buf) {
-            if (*buf == XMODEM_CTRLC) {
-                break;
-            } else if (*buf == XMODEM_SOH) {
-                // Start of frame -- see if we have the full frame.
-                if (next - buf >= (1 + 2 + 128 + 2)) {
-                    next = buf;
 
-                    crc = buf[1 + 2 + 128];
-                    crc = crc << 8 | buf[1 + 2 + 128 + 1];
-                    if (buf[1] == 255 - buf[2] && (seq & 0xff) == buf[1] && XModemCrc16(buf + 1 + 2, 128) == crc) {
-                        if ((write_addr & 0xffff) == 0) {
-                            ChipSelect(1);
-                            WriteSPI(0x06);
-                            ChipSelect(0);
+        if (*buf == XMODEM_CTRLC) {
+            // Custom extension, allows aborting the flash mode at the prompt.
+            break;
+        } else if (*buf == XMODEM_STX || *buf == XMODEM_SOH && len > 5) {
+            // Start of 1024 (STX) or 128 (SOH) byte frame.
 
-                            // Sector erase.
-                            ChipSelect(1);
-                            WriteSPI(0xd8);
-                            WriteSPI((write_addr >> 16) & 0xff);
-                            WriteSPI((write_addr >> 8) & 0xff);
-                            WriteSPI((write_addr >> 0) & 0xff);
-                            ChipSelect(0);
+            // If this is the start of a new sector (512kbit), then erase.
+            if ((write_addr & 0xffff) == 0) {
+                ChipSelect(0x06);
+                ChipDeselect();
 
+                // Sector erase.
+                SendAddress(0xd8, write_addr);
+                WaitForWriteInProgress();
+            }
+
+            valid = 0;
+            frame_size = (*buf == XMODEM_STX) ? 1024 : 128;
+            remain = frame_size;
+            frame_crc = 0;
+            data_crc = 0;
+            page_addr = write_addr;
+
+            // Verify that this is the expected sequence number. Only
+            // write if it is valid, but continue to read all the data
+            // for this frame regardless.
+            if (buf[1] == 255 - buf[2] && (seq & 0xff) == buf[1]) {
+                valid = 1;
+            }
+            // Offset the first read by the SOH/SEQ/~SEQ.
+            start = buf+3;
+            len -= 3;
+
+            // Keep reading&writing untill we've done frame_size bytes.
+            while (1) {
+                if (len) {
+                    // This will happen on the last read, where there will
+                    // be the two CRC bytes extra on the end.
+                    if (len > remain) {
+                        len = remain;
+                    }
+
+                    // Only write to SPI flash if we're expecting this frame
+                    // to be valid.
+                    if (valid) {
+                        // Update the CRC with this chunk.
+                        data_crc = XModemCrc16(start, len, data_crc);
+
+                        // Write the data.
+                        // A write might straddle a page boundary, so it might
+                        // need to be broken into multiple writes so this
+                        // loop will either run once or twice.
+                        avail = len;
+                        while (avail > 0) {
+                            // Write enable.
+                            ChipSelect(0x06);
+                            ChipDeselect();
+
+                            // Write whatever's left of the current page.
+                            page_remaining = (256 - (page_addr & 0xff));
+                            op_size = avail;
+                            if (op_size > page_remaining) {
+                                // Write to the end of this page, leave
+                                // remaining for next iteration.
+                                op_size = page_remaining;
+                            }
+
+                            SendAddress(0x02, page_addr);
+                            SpiWrite(start, op_size);
                             WaitForWriteInProgress();
-                        }
 
-                        // Write enable.
-                        ChipSelect(1);
-                        WriteSPI(0x06);
-                        ChipSelect(0);
+                            // Advance to the start of the next page.
+                            page_addr += op_size;
+                            start += op_size;
+                            avail -= op_size;
 
-                        ChipSelect(1);
-                        WriteSPI(0x02);
-                        WriteSPI((write_addr >> 16) & 0xff);
-                        WriteSPI((write_addr >> 8) & 0xff);
-                        WriteSPI((write_addr >> 0) & 0xff);
-                        putbufSPI(buf + 1 + 2, 128);
-                        ChipSelect(0);
-
-                        WaitForWriteInProgress();
-
-                        ChipSelect(1);
-                        WriteSPI(0x03);
-                        WriteSPI((write_addr >> 16) & 0xff);
-                        WriteSPI((write_addr >> 8) & 0xff);
-                        WriteSPI((write_addr >> 0) & 0xff);
-                        getsSPI(buf + 1 + 2, 128);
-                        ChipSelect(0);
-
-                        if (XModemCrc16(buf + 1 + 2, 128) == crc) {
-                            seq += 1;
-                            write_addr += 128;
-                            WriteUsbSync(&XMODEM_ACK, 1);
-                            continue;
+                            // assert((page_addr & 0xff) == 0)
                         }
                     }
-                    WriteUsbSync(&XMODEM_NACK, 1);
+
+                    // Update number of bytes left for this frame.
+                    remain -= len;
                 }
-            } else if (*buf == XMODEM_EOT) {
-                // End of file.
-                WriteUsbSync(&XMODEM_ACK, 1);
-                break;
-            } else {
-                // Frame started with something else.
-                WriteUsbSync(&XMODEM_NACK, 1);
-                next = buf;
-                continue;
+
+                // Frame complete. The next two bytes should be the CRC.
+                if (remain == 0) {
+                    frame_crc = buf[len];
+                    frame_crc = frame_crc << 8 | buf[len + 1];
+                    break;
+                }
+
+                // Get remaining frame bytes, but no more.
+                op_size = sizeof(buf);
+                if (remain + 2 < sizeof(buf)) {
+                    op_size = remain + 2;
+                }
+
+                len = getsUSBUSART(SPI_CDC_PORT, buf, op_size);
+                start = buf;
             }
+
+            // Finished the frame, verify CRC against the received data.
+            if (valid && frame_crc == data_crc) {
+                if (verify_crc) {
+                    // Then optionally verify against the written data.
+                    data_crc = 0;
+
+                    // Read back from SPI flash.
+                    SendAddress(0x03, write_addr);
+                    for (i = 0; i < frame_size; i += sizeof(buf)) {
+                        SpiRead(buf, sizeof(buf));
+                        data_crc = XModemCrc16(buf, sizeof(buf), data_crc);
+                    }
+                    ChipDeselect();
+                } else {
+                    // Verify disabled, skip by setting to the known-good CRC.
+                    data_crc == frame_crc;
+                }
+
+                // Verify read-back CRC.
+                if (frame_crc == data_crc) {
+                    // Everything worked! Advance sequence number, the write
+                    // address and ACK the frame.
+                    seq += 1;
+                    write_addr += frame_size;
+                    WriteUsbSync(&XMODEM_ACK, 1);
+                    continue;
+                }
+            }
+        } else if (*buf == XMODEM_EOT) {
+            // End of file, always ACK and go back to prompt.
+            WriteUsbSync(&XMODEM_ACK, 1);
+            break;
         }
+        // Unknown frame, data was invalid, or verify failed.
+        WriteUsbSync(&XMODEM_NACK, 1);
     }
 
-    SpiEnable(0);
+    SpiDisable();
     __delay_ms(10);
 }
 
 void HandleCommand(uint8_t* cmd, uint8_t len) {
     switch (*cmd) {
         case '1':
-            SpiEnable(1);
+            SpiEnable();
             break;
         case '0':
-            SpiEnable(0);
+            SpiDisable();
             break;
         case 'f':
             Flash();
@@ -361,6 +441,12 @@ void HandleCommand(uint8_t* cmd, uint8_t len) {
             break;
         case 'e':
             BulkErase();
+            break;
+        case 'c':
+            verify_crc = 0;
+            break;
+        case 'C':
+            verify_crc = 1;
             break;
         case 'v':
             WriteUsbSync(MSG_VERSION, MSG_VERSION_LEN);
@@ -375,6 +461,7 @@ void SpiFlashTask(void) {
     static uint8_t* next = buf;
     static uint8_t* end = buf;
     static uint8_t i;
+    const static uint8_t* bufend = buf + sizeof(buf);
 
     if (!USBUSARTIsTxTrfReady(SPI_CDC_PORT)) {
         return;

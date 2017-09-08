@@ -54,9 +54,7 @@ void main(void) {
         }
 
         SpiFlashTask();
-        //EchoTask(0);
         FpgaUartTask();
-        //EchoTask(1);
         CDCTxService();
     }
 }
