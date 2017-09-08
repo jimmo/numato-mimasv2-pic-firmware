@@ -1,5 +1,6 @@
 #define SYS_FREQ        48000000L
 #define FCY             SYS_FREQ/4
+#define _XTAL_FREQ      12000000L
 
 #include <stdint.h>
 

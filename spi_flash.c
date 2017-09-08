@@ -68,13 +68,10 @@ void WriteUsbSync(const uint8_t* data, uint8_t len) {
     putUSBUSART(SPI_CDC_PORT, (uint8_t*) data, len);
     do {
         CDCTxService();
+#if defined(USB_POLLING)
+        USBDeviceTasks();
+#endif
     } while (!USBUSARTIsTxTrfReady(SPI_CDC_PORT));
-}
-
-void Delay1KTCYx(uint16_t x) {
-    do {
-        _delay(1000);
-    } while (--x != 0);
 }
 
 uint8_t HexNybble(uint8_t x) {
@@ -92,7 +89,7 @@ void SpiEnable(uint8_t enable) {
         PROGB_TRIS = IO_DIRECTION_OUT;
         PROGB_LATCH = 0;
 
-        Delay1KTCYx(1000);
+        __delay_ms(1);
 
         //Set SDO SPI Pin directions
         ANSELHbits.ANS9 = 0; // RC7 as digital IO
@@ -105,18 +102,12 @@ void SpiEnable(uint8_t enable) {
         CS_LATCH = 1;
 
         //SSPSTAT settings
-        SSPSTATbits.SMP = 0; //Sample at middle
-        SSPSTATbits.CKE = 1;
-
-        // Run at Fosc/4
-        SSPADD = 0;
+        SSPSTATbits.SMP = 0; // Sample at middle
+        SSPSTATbits.CKE = 1; // Transmit active->idle.
 
         //SSPCON1 Setings
-        SSPCON1bits.CKP = 0;
-        SSPCON1bits.SSPM3 = 0;
-        SSPCON1bits.SSPM2 = 0;
-        SSPCON1bits.SSPM1 = 1;
-        SSPCON1bits.SSPM0 = 0;
+        SSPCON1bits.CKP = 0;  // idle clock low.
+        SSPCON1bits.SSPM = 1; // Fosc / 16
 
         //Disable SSP interrupt
         PIE1bits.SSPIE = 0;
@@ -124,7 +115,7 @@ void SpiEnable(uint8_t enable) {
         //Enable MSSP
         SSPCON1bits.SSPEN = 1;
 
-        Delay1KTCYx(1);
+        __delay_ms(1);
     } else {
         CloseSPI();
 
@@ -135,7 +126,7 @@ void SpiEnable(uint8_t enable) {
         CLK_TRIS = IO_DIRECTION_IN;
         CS_TRIS = IO_DIRECTION_IN;
 
-        Delay1KTCYx(1000);
+        __delay_ms(1);
 
         PROGB_LATCH = 1;
         PROGB_TRIS = IO_DIRECTION_IN;
@@ -145,12 +136,12 @@ void SpiEnable(uint8_t enable) {
 void ChipSelect(uint8_t sel) {
     if (sel) {
         CS_LATCH = 1;
-        _delay(10);
+        __delay_us(10);
         CS_LATCH = 0;
-        _delay(10);
+        __delay_us(10);
     } else {
         CS_LATCH = 1;
-        _delay(10);
+        __delay_us(10);
     }
 }
 
@@ -164,7 +155,7 @@ uint8_t GetSpiFlashStatus() {
 
 void WaitForWriteInProgress() {
     do {
-        _delay(1000);
+        __delay_us(10);
     } while (GetSpiFlashStatus() & 1);
 }
 
@@ -219,7 +210,7 @@ void SpiFlashInit(void) {
     //Pull PROG_B Low for a few milliseconds to start configuration
     PROGB_TRIS = IO_DIRECTION_OUT;
     PROGB_LATCH = 0;
-    Delay1KTCYx(100);
+    __delay_ms(5);
     PROGB_LATCH = 1;
     PROGB_TRIS = IO_DIRECTION_IN;
 }
@@ -351,7 +342,7 @@ void Flash(void) {
     }
 
     SpiEnable(0);
-    Delay1KTCYx(10000);
+    __delay_ms(10);
 }
 
 void HandleCommand(uint8_t* cmd, uint8_t len) {

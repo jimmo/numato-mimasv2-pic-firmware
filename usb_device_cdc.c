@@ -33,20 +33,12 @@ please contact mla_licensing@microchip.com
 // See http://ww1.microchip.com/downloads/en/DeviceDoc/40001350F.pdf section 22.3
 // The "usb_data" section is defined in the linker command line options.
 #if CDC_NUM_PORTS >= 1
-volatile unsigned char __section("usb_data") cdc1_data_tx[CDC_DATA_IN_EP_SIZE];
-volatile unsigned char __section("usb_data") cdc1_data_rx[CDC_DATA_OUT_EP_SIZE];
+volatile unsigned char __section("usb_data") cdc1_data_tx[CDC1_DATA_IN_EP_SIZE];
+volatile unsigned char __section("usb_data") cdc1_data_rx[CDC1_DATA_OUT_EP_SIZE];
 #endif
 #if CDC_NUM_PORTS >= 2
-volatile unsigned char __section("usb_data") cdc2_data_tx[CDC_DATA_IN_EP_SIZE];
-volatile unsigned char __section("usb_data") cdc2_data_rx[CDC_DATA_OUT_EP_SIZE];
-#endif
-#if CDC_NUM_PORTS >= 3
-volatile unsigned char __section("usb_data") cdc3_data_tx[CDC_DATA_IN_EP_SIZE];
-volatile unsigned char __section("usb_data") cdc3_data_rx[CDC_DATA_OUT_EP_SIZE];
-#endif
-#if CDC_NUM_PORTS >= 4
-volatile unsigned char __section("usb_data") cdc4_data_tx[CDC_DATA_IN_EP_SIZE];
-volatile unsigned char __section("usb_data") cdc4_data_rx[CDC_DATA_OUT_EP_SIZE];
+volatile unsigned char __section("usb_data") cdc2_data_tx[CDC2_DATA_IN_EP_SIZE];
+volatile unsigned char __section("usb_data") cdc2_data_rx[CDC2_DATA_OUT_EP_SIZE];
 #endif
 
 CDC_PORT_STATE cdc_ports[CDC_NUM_PORTS];
@@ -253,23 +245,15 @@ void CDCInitEP(uint8_t cdc_port, uint8_t if_comm, uint8_t ep_comm, uint8_t if_da
     if (cdc_port == 0) {
         cdc_ports[cdc_port].cdc_data_tx = cdc1_data_tx;
         cdc_ports[cdc_port].cdc_data_rx = cdc1_data_rx;
+        cdc_ports[cdc_port].ep_out_size = CDC1_DATA_OUT_EP_SIZE;
+        cdc_ports[cdc_port].ep_in_size = CDC1_DATA_IN_EP_SIZE;
     }
 #if CDC_NUM_PORTS >= 2
     else if (cdc_port == 1) {
         cdc_ports[cdc_port].cdc_data_tx = cdc2_data_tx;
         cdc_ports[cdc_port].cdc_data_rx = cdc2_data_rx;
-    }
-#endif
-#if CDC_NUM_PORTS >= 3
-    else if (cdc_port == 2) {
-        cdc_ports[cdc_port].cdc_data_tx = cdc3_data_tx;
-        cdc_ports[cdc_port].cdc_data_rx = cdc3_data_rx;
-    }
-#endif
-#if CDC_NUM_PORTS >= 4
-    else if (cdc_port == 3) {
-        cdc_ports[cdc_port].cdc_data_tx = cdc4_data_tx;
-        cdc_ports[cdc_port].cdc_data_rx = cdc4_data_rx;
+        cdc_ports[cdc_port].ep_out_size = CDC2_DATA_OUT_EP_SIZE;
+        cdc_ports[cdc_port].ep_in_size = CDC2_DATA_IN_EP_SIZE;
     }
 #endif
 
@@ -295,7 +279,7 @@ void CDCInitEP(uint8_t cdc_port, uint8_t if_comm, uint8_t ep_comm, uint8_t if_da
     USBEnableEndpoint(ep_comm,USB_IN_ENABLED|USB_HANDSHAKE_ENABLED|USB_DISALLOW_SETUP);
     USBEnableEndpoint(ep_data,USB_IN_ENABLED|USB_OUT_ENABLED|USB_HANDSHAKE_ENABLED|USB_DISALLOW_SETUP);
 
-    cdc_ports[cdc_port].CDCDataOutHandle = USBRxOnePacket(ep_data,(uint8_t*)cdc_ports[cdc_port].cdc_data_rx,CDC_DATA_OUT_EP_SIZE);
+    cdc_ports[cdc_port].CDCDataOutHandle = USBRxOnePacket(ep_data,(uint8_t*)cdc_ports[cdc_port].cdc_data_rx,cdc_ports[cdc_port].ep_out_size);
     cdc_ports[cdc_port].CDCDataInHandle = NULL;
 
     #if defined(USB_CDC_SUPPORT_DSR_REPORTING)
@@ -407,7 +391,7 @@ bool USBCDCEventHandler(USB_EVENT event, void *pdata, uint16_t size)
         for (uint8_t cdc_port = 0; cdc_port < CDC_NUM_PORTS; ++cdc_port) {
             if(pdata == cdc_ports[cdc_port].CDCDataOutHandle)
             {
-                cdc_ports[cdc_port].CDCDataOutHandle = USBRxOnePacket(cdc_ports[cdc_port].ep_data,(uint8_t*)cdc_ports[cdc_port].cdc_data_rx,CDC_DATA_OUT_EP_SIZE);
+                cdc_ports[cdc_port].CDCDataOutHandle = USBRxOnePacket(cdc_ports[cdc_port].ep_data,(uint8_t*)cdc_ports[cdc_port].cdc_data_rx,cdc_ports[cdc_port].ep_out_size);
             }
             if(pdata == cdc_ports[cdc_port].CDCDataInHandle)
             {
@@ -483,7 +467,7 @@ uint8_t getsUSBUSART(uint8_t cdc_port, uint8_t *buffer, uint8_t len)
          * Prepare dual-ram buffer for next OUT transaction
          */
 
-        cdc_ports[cdc_port].CDCDataOutHandle = USBRxOnePacket(cdc_ports[cdc_port].ep_data,(uint8_t*)cdc_ports[cdc_port].cdc_data_rx,CDC_DATA_OUT_EP_SIZE);
+        cdc_ports[cdc_port].CDCDataOutHandle = USBRxOnePacket(cdc_ports[cdc_port].ep_data,(uint8_t*)cdc_ports[cdc_port].cdc_data_rx,cdc_ports[cdc_port].ep_out_size);
 
     }//end if
 
@@ -856,8 +840,8 @@ void CDCTxService()
             /*
              * First, have to figure out how many byte of data to send.
              */
-            if(cdc_ports[cdc_port].cdc_tx_len > CDC_DATA_IN_EP_SIZE)
-                byte_to_send = CDC_DATA_IN_EP_SIZE;
+            if(cdc_ports[cdc_port].cdc_tx_len > cdc_ports[cdc_port].ep_in_size)
+                byte_to_send = cdc_ports[cdc_port].ep_in_size;
             else
                 byte_to_send = cdc_ports[cdc_port].cdc_tx_len;
 
@@ -896,7 +880,7 @@ void CDCTxService()
              */
             if(cdc_ports[cdc_port].cdc_tx_len == 0)
             {
-                if(byte_to_send == CDC_DATA_IN_EP_SIZE)
+                if(byte_to_send == cdc_ports[cdc_port].ep_in_size)
                     cdc_ports[cdc_port].cdc_trf_state = CDC_TX_BUSY_ZLP;
                 else
                     cdc_ports[cdc_port].cdc_trf_state = CDC_TX_COMPLETING;

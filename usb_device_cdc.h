@@ -954,6 +954,8 @@ typedef struct
     POINTER pCDCDst;            // Dedicated destination pointer
     uint8_t cdc_tx_len;            // total tx length
     uint8_t cdc_mem_type;          // _ROM, _RAM
+    uint8_t ep_in_size;
+    uint8_t ep_out_size;
 
     USB_HANDLE CDCDataOutHandle;
     USB_HANDLE CDCDataInHandle;

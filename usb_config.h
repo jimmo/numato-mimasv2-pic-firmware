@@ -48,8 +48,10 @@
 #define CDC_NUM_PORTS           2
 
 // This defines the size of the rx/tx buffers.
-#define CDC_DATA_OUT_EP_SIZE    64/CDC_NUM_PORTS   // RX
-#define CDC_DATA_IN_EP_SIZE     64/CDC_NUM_PORTS   // TX
+#define CDC1_DATA_OUT_EP_SIZE    16   // RX
+#define CDC1_DATA_IN_EP_SIZE     64   // TX
+#define CDC2_DATA_OUT_EP_SIZE    16   // RX
+#define CDC2_DATA_IN_EP_SIZE     16   // TX
 
 // Support: Send_Break command
 //#define USB_CDC_SUPPORT_ABSTRACT_CONTROL_MANAGEMENT_CAPABILITIES_D2

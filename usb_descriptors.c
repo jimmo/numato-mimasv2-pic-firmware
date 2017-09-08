@@ -89,7 +89,7 @@ const uint8_t configDescriptor1[] = {
     USB_DESCRIPTOR_ENDPOINT,       // Endpoint Descriptor
     _EP02_OUT,                     // EndpointAddress                        ***
     _BULK,                         // Attributes
-    CDC_DATA_OUT_EP_SIZE,0x00,     // Max tx/rx size
+    CDC1_DATA_OUT_EP_SIZE,0x00,     // Max tx/rx size
     0x00,                          // Interval
 
     // ----- CDC1 - data in endpoint ---0---------------------------------------
@@ -97,7 +97,7 @@ const uint8_t configDescriptor1[] = {
     USB_DESCRIPTOR_ENDPOINT,       // Endpoint Descriptor
     _EP02_IN,                      // EndpointAddress                        ***
     _BULK,                         // Attributes
-    CDC_DATA_IN_EP_SIZE,0x00,      // Max tx/rx size
+    CDC1_DATA_IN_EP_SIZE,0x00,      // Max tx/rx size
     0x00,                          // Interval
 #if CDC_NUM_PORTS > 1
     // ---- CDC2 - comm interface ----------------------------------------------
@@ -158,7 +158,7 @@ const uint8_t configDescriptor1[] = {
     USB_DESCRIPTOR_ENDPOINT,       // Endpoint Descriptor
     _EP04_OUT,                     // EndpointAddress                        ***
     _BULK,                         // Attributes
-    CDC_DATA_OUT_EP_SIZE,0x00,     // Max tx/rx size
+    CDC2_DATA_OUT_EP_SIZE,0x00,     // Max tx/rx size
     0x00,                          // Interval
 
     // ----- CDC2 - data in endpoint ---0---------------------------------------
@@ -166,7 +166,7 @@ const uint8_t configDescriptor1[] = {
     USB_DESCRIPTOR_ENDPOINT,       // Endpoint Descriptor
     _EP04_IN,                      // EndpointAddress                        ***
     _BULK,                         // Attributes
-    CDC_DATA_IN_EP_SIZE,0x00,      // Max tx/rx size
+    CDC2_DATA_IN_EP_SIZE,0x00,      // Max tx/rx size
     0x00,                          // Interval
 #endif
 };

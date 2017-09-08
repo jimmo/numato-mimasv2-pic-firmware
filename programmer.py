@@ -6,7 +6,7 @@ port = serial.Serial('/dev/ttyACM0', 115200, timeout=1)
 port.write(b'\r\n\r\n')
 if port.in_waiting:
   port.read(port.in_waiting)
-port.write(b'c\r')
+port.write(b'i\r')
 print(port.read(100))
 
 def xmodem_getc(size, timeout=1):
