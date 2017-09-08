@@ -12,12 +12,13 @@
 #include "fpga_uart.h"
 #include "spi_flash.h"
 
+/*
 void EchoTask(uint8_t cdc_port) {
     if (!USBUSARTIsTxTrfReady(cdc_port)) {
         return;
     }
 
-    uint8_t buf[100];
+    uint8_t buf[140];
     uint8_t bytes_read = getsUSBUSART(cdc_port, buf, sizeof(buf));
 
     if (bytes_read == 0) {
@@ -32,6 +33,7 @@ void EchoTask(uint8_t cdc_port) {
 
     putUSBUSART(cdc_port, buf, bytes_read);
 }
+*/
 
 void main(void) {
     ConfigureOscillator();
@@ -52,7 +54,9 @@ void main(void) {
         }
 
         SpiFlashTask();
+        //EchoTask(0);
         FpgaUartTask();
+        //EchoTask(1);
         CDCTxService();
     }
 }

@@ -24,7 +24,7 @@ const uint8_t configDescriptor1[] = {
     // ----- Configuration descriptor ------------------------------------------
     0x09,                          // Size of this descriptor in bytes
     USB_DESCRIPTOR_CONFIGURATION,  // CONFIGURATION descriptor type
-    9+58*2,0,                      // Total length of data for this cfg
+    9+58*CDC_NUM_PORTS,0,                      // Total length of data for this cfg
     USB_MAX_NUM_INT,               // Number of interfaces in this cfg
     1,                             // Index value of this configuration
     0,                             // Configuration string index
@@ -99,7 +99,7 @@ const uint8_t configDescriptor1[] = {
     _BULK,                         // Attributes
     CDC_DATA_IN_EP_SIZE,0x00,      // Max tx/rx size
     0x00,                          // Interval
-
+#if CDC_NUM_PORTS > 1
     // ---- CDC2 - comm interface ----------------------------------------------
     9,                             // Size of this descriptor in bytes
     USB_DESCRIPTOR_INTERFACE,      // INTERFACE descriptor type
@@ -168,6 +168,7 @@ const uint8_t configDescriptor1[] = {
     _BULK,                         // Attributes
     CDC_DATA_IN_EP_SIZE,0x00,      // Max tx/rx size
     0x00,                          // Interval
+#endif
 };
 
 // Language code string descriptor
@@ -187,12 +188,12 @@ const struct {
 const struct {
     uint8_t bLength;
     uint8_t bDscType;
-    uint16_t string[24];
+    uint16_t string[14];
 } sd001 = {
     sizeof(sd001),
     USB_DESCRIPTOR_STRING,
     {
-        'N','u','m','a','t','o',' ','S','y','s','t','e','m','s',' ','P','v','t','.',' ','L','t','d','.'
+        'N','u','m','a','t','o',' ','S','y','s','t','e','m','s'
     }
 };
 
@@ -200,12 +201,12 @@ const struct {
 const struct {
     uint8_t bLength;
     uint8_t bDscType;
-    uint16_t string[60];
+    uint16_t string[8];
 } sd002 = {
     sizeof(sd002),
     USB_DESCRIPTOR_STRING,
     {
-        'N','u','m','a','t','o',' ','L','a','b',' ','M','i','m','a','s',' ','V','2',' ','S','p','a','r','t','a','n','6',' ','F','P','G','A',' ','D','e','v','e','l','o','p','m','e','n','t',' ','B','o','a','r','d'
+        'M','i','m','a','s',' ','V','2'
     }
 };
 

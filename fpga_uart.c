@@ -50,12 +50,12 @@ void FpgaUartInit(void) {
 // TXREG           --  Send byte to UART.
 
 // USB->UART
-static uint8_t usb_rx_buf[CDC_DATA_IN_EP_SIZE] = {0};
+static uint8_t usb_rx_buf[16];
 static uint8_t usb_rx_pos = 0;
 static uint8_t usb_rx_avail = 0;
 
 // UART->USB
-static uint8_t usb_tx_buf[CDC_DATA_OUT_EP_SIZE] = {0};
+static uint8_t usb_tx_buf[16];
 static uint8_t usb_tx_pos = 0;
 
 void FpgaUartTask(void) {
