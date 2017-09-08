@@ -65,17 +65,16 @@ const uint8_t XMODEM_C = 0x43;
 const uint8_t XMODEM_CTRLC = 0x03;
 
 void WriteUsbSync(const uint8_t* data, uint8_t len) {
-    putUSBUSART(SPI_CDC_PORT, (uint8_t*)data, len);
+    putUSBUSART(SPI_CDC_PORT, (uint8_t*) data, len);
     do {
         CDCTxService();
     } while (!USBUSARTIsTxTrfReady(SPI_CDC_PORT));
 }
 
-void Delay1KTCYx(uint16_t x)
-{
-	do {
-		_delay(1000);
-	} while(--x != 0);
+void Delay1KTCYx(uint16_t x) {
+    do {
+        _delay(1000);
+    } while (--x != 0);
 }
 
 uint8_t HexNybble(uint8_t x) {
@@ -88,43 +87,42 @@ uint8_t HexNybble(uint8_t x) {
     }
 }
 
-void SpiEnable(uint8_t enable)
-{
+void SpiEnable(uint8_t enable) {
     if (enable) {
         PROGB_TRIS = IO_DIRECTION_OUT;
         PROGB_LATCH = 0;
 
         Delay1KTCYx(1000);
 
-		//Set SDO SPI Pin directions
-		ANSELHbits.ANS9 = 0;// RC7 as digital IO
-		ANSELHbits.ANS10 = 0;// RB4 as digital IO
+        //Set SDO SPI Pin directions
+        ANSELHbits.ANS9 = 0; // RC7 as digital IO
+        ANSELHbits.ANS10 = 0; // RB4 as digital IO
 
-		SI_TRIS = IO_DIRECTION_OUT;
-		SO_TRIS = IO_DIRECTION_IN;
-		CLK_TRIS = IO_DIRECTION_OUT;
+        SI_TRIS = IO_DIRECTION_OUT;
+        SO_TRIS = IO_DIRECTION_IN;
+        CLK_TRIS = IO_DIRECTION_OUT;
         CS_TRIS = IO_DIRECTION_OUT;
         CS_LATCH = 1;
 
-		//SSPSTAT settings
-		SSPSTATbits.SMP = 0; //Sample at middle
-		SSPSTATbits.CKE = 1;
+        //SSPSTAT settings
+        SSPSTATbits.SMP = 0; //Sample at middle
+        SSPSTATbits.CKE = 1;
 
         // Run at Fosc/4
         SSPADD = 0;
 
-		//SSPCON1 Setings
-		SSPCON1bits.CKP = 0;
-		SSPCON1bits.SSPM3 = 0;
-		SSPCON1bits.SSPM2 = 0;
-		SSPCON1bits.SSPM1 = 1;
-		SSPCON1bits.SSPM0 = 0;
+        //SSPCON1 Setings
+        SSPCON1bits.CKP = 0;
+        SSPCON1bits.SSPM3 = 0;
+        SSPCON1bits.SSPM2 = 0;
+        SSPCON1bits.SSPM1 = 1;
+        SSPCON1bits.SSPM0 = 0;
 
-		//Disable SSP interrupt
-		PIE1bits.SSPIE = 0;
+        //Disable SSP interrupt
+        PIE1bits.SSPIE = 0;
 
-		//Enable MSSP
-		SSPCON1bits.SSPEN = 1;
+        //Enable MSSP
+        SSPCON1bits.SSPEN = 1;
 
         Delay1KTCYx(1);
     } else {
@@ -132,9 +130,9 @@ void SpiEnable(uint8_t enable)
 
         CS_LATCH = 1;
 
-		SI_TRIS = IO_DIRECTION_IN;
-		SO_TRIS = IO_DIRECTION_IN;
-		CLK_TRIS = IO_DIRECTION_IN;
+        SI_TRIS = IO_DIRECTION_IN;
+        SO_TRIS = IO_DIRECTION_IN;
+        CLK_TRIS = IO_DIRECTION_IN;
         CS_TRIS = IO_DIRECTION_IN;
 
         Delay1KTCYx(1000);
@@ -167,7 +165,7 @@ uint8_t GetSpiFlashStatus() {
 void WaitForWriteInProgress() {
     do {
         _delay(1000);
-    } while(GetSpiFlashStatus() & 1);
+    } while (GetSpiFlashStatus() & 1);
 }
 
 void GetFlashId(void) {
@@ -181,8 +179,8 @@ void GetFlashId(void) {
     chipid[7] = '\n';
     getsSPI(chipid, 3);
     for (i = 2; i >= 0; --i) {
-        chipid[i*2+1] = HexNybble(chipid[i] & 0xf);
-        chipid[i*2] = HexNybble((chipid[i] >> 4) & 0xf);
+        chipid[i * 2 + 1] = HexNybble(chipid[i] & 0xf);
+        chipid[i * 2] = HexNybble((chipid[i] >> 4) & 0xf);
     }
     ChipSelect(0);
 
@@ -218,36 +216,36 @@ void SpiFlashInit(void) {
     CDONE_TRIS = IO_DIRECTION_IN;
     INITB_TRIS = IO_DIRECTION_IN;
 
-	//Pull PROG_B Low for a few milliseconds to start configuration
+    //Pull PROG_B Low for a few milliseconds to start configuration
     PROGB_TRIS = IO_DIRECTION_OUT;
     PROGB_LATCH = 0;
     Delay1KTCYx(100);
-	PROGB_LATCH = 1;
+    PROGB_LATCH = 1;
     PROGB_TRIS = IO_DIRECTION_IN;
 }
 
 unsigned short XModemCrc16(uint8_t* data, uint8_t len) {
-  const uint16_t poly = 0x1021;
-  static uint16_t crc;
-  static uint8_t i, j;
+    const uint16_t poly = 0x1021;
+    static uint16_t crc;
+    static uint8_t i, j;
 
-  crc = 0;
-  for (i = 0; i < len; ++i) {
-    uint16_t x = data[i];
-    crc = (crc ^ x << 8);
-    for (j = 0; j < 8; ++j) {
-      if (crc & 0x8000) {
-        crc = crc << 1 ^ poly;
-      } else {
-        crc <<= 1;
-      }
+    crc = 0;
+    for (i = 0; i < len; ++i) {
+        uint16_t x = data[i];
+        crc = (crc ^ x << 8);
+        for (j = 0; j < 8; ++j) {
+            if (crc & 0x8000) {
+                crc = crc << 1 ^ poly;
+            } else {
+                crc <<= 1;
+            }
+        }
     }
-  }
-  return crc;
+    return crc;
 }
 
 static uint8_t buf[134];
-static const uint8_t* bufend = buf + sizeof(buf);
+static const uint8_t* bufend = buf + sizeof (buf);
 
 void Flash(void) {
     WriteUsbSync(&XMODEM_C, 1);
@@ -267,8 +265,8 @@ void Flash(void) {
         if (len == 0) {
             if (r == 0) {
                 if (tick_count - t > 100) {
-                  WriteUsbSync(&XMODEM_C, 1);
-                  t = tick_count;
+                    WriteUsbSync(&XMODEM_C, 1);
+                    t = tick_count;
                 }
             }
             continue;
@@ -323,9 +321,9 @@ void Flash(void) {
 
                         ChipSelect(1);
                         WriteSPI(0x03);
-                        WriteSPI((write_addr>>16) & 0xff);
-                        WriteSPI((write_addr>>8) & 0xff);
-                        WriteSPI((write_addr>>0) & 0xff);
+                        WriteSPI((write_addr >> 16) & 0xff);
+                        WriteSPI((write_addr >> 8) & 0xff);
+                        WriteSPI((write_addr >> 0) & 0xff);
                         getsSPI(buf + 1 + 2, 128);
                         ChipSelect(0);
 
@@ -405,7 +403,7 @@ void SpiFlashTask(void) {
     static uint8_t len;
     len = getsUSBUSART(SPI_CDC_PORT, next, bufend - next);
     if (len == 0) {
-      return;
+        return;
     }
 
     end = NULL;
@@ -417,12 +415,12 @@ void SpiFlashTask(void) {
         }
     }
     if (end) {
-        i = *(end+1);
+        i = *(end + 1);
         *(end) = '\r';
-        *(end+1) = '\n';
+        *(end + 1) = '\n';
         WriteUsbSync(next, end + 2 - next);
         *end = 0;
-        *(end+1) = i;
+        *(end + 1) = i;
         HandleCommand(buf, end - buf);
         next = buf;
         len = 0;
