@@ -259,6 +259,7 @@ void Flash(void) {
     t = tick_count;
     next = buf;
     seq = 1;
+    write_addr = 0;
 
     while (1) {
         len = getsUSBUSART(SPI_CDC_PORT, next, bufend - next);
@@ -288,7 +289,7 @@ void Flash(void) {
                     crc = buf[1 + 2 + 128];
                     crc = crc << 8 | buf[1 + 2 + 128 + 1];
                     if (buf[1] == 255 - buf[2] && (seq & 0xff) == buf[1] && XModemCrc16(buf + 1 + 2, 128) == crc) {
-                        if ((write_addr & 0x7ffff) == 0) {
+                        if ((write_addr & 0xffff) == 0) {
                             ChipSelect(1);
                             WriteSPI(0x06);
                             ChipSelect(0);
