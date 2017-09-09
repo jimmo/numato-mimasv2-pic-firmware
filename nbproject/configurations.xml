@@ -15,7 +15,6 @@
       <itemPath>usb_hal_pic18.h</itemPath>
       <itemPath>fpga_uart.h</itemPath>
       <itemPath>spi_flash.h</itemPath>
-      <itemPath>spi.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -33,7 +32,6 @@
       <itemPath>usb_device_cdc.c</itemPath>
       <itemPath>fpga_uart.c</itemPath>
       <itemPath>spi_flash.c</itemPath>
-      <itemPath>spi.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"

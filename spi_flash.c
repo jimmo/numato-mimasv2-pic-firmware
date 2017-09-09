@@ -139,22 +139,27 @@ void SpiDisable() {
     PROGB_TRIS = IO_DIRECTION_IN;
 }
 
-void ChipSelect(uint8_t command) {
-    CS_LATCH = 1;
-    __delay_us(10);
+uint8_t SpiTxRx(uint8_t b) {
+    SSPBUF = b;
+    while ( !SSPSTATbits.BF );
+    return SSPBUF;
+}
+
+uint8_t ChipSelect(uint8_t command) {
     CS_LATCH = 0;
-    __delay_us(10);
-    SpiWriteByte(command);
+    __delay_us(1);
+
+    return SpiTxRx(command);
 }
 
 void ChipDeselect() {
     CS_LATCH = 1;
-    __delay_us(10);
+    __delay_us(1);
 }
 
 uint8_t GetSpiFlashStatus() {
     ChipSelect(0x05);
-    uint8_t result = SpiReadByte();
+    uint8_t result = SpiTxRx(0);
     ChipDeselect();
     return result;
 }
@@ -163,7 +168,7 @@ void WaitForWriteInProgress() {
     // Deselects, then waits for the first bit of the status register to clear.
     CS_LATCH = 1;
     do {
-        __delay_us(10);
+        __delay_us(1);
     } while (GetSpiFlashStatus() & 1);
 }
 
@@ -172,13 +177,14 @@ void GetFlashId(void) {
 
     ChipSelect(0x9f);
     static uint8_t chipid[8];
-    static int8_t i;
+    static uint8_t i, x;
+
     chipid[6] = '\r';
     chipid[7] = '\n';
-    SpiRead(chipid, 3);
-    for (i = 2; i >= 0; --i) {
-        chipid[i * 2 + 1] = HexNybble(chipid[i] & 0xf);
-        chipid[i * 2] = HexNybble((chipid[i] >> 4) & 0xf);
+    for (i = 0; i < 3; ++i) {
+        x = SpiTxRx(0);
+        chipid[i * 2] = HexNybble((x >> 4) & 0xf);
+        chipid[i * 2 + 1] = HexNybble(x & 0xf);
     }
     ChipDeselect();
 
@@ -218,29 +224,27 @@ void SpiFlashInit(void) {
     PROGB_TRIS = IO_DIRECTION_IN;
 }
 
-unsigned short XModemCrc16(uint8_t* data, uint8_t len, uint16_t crc) {
+unsigned short XModemCrc16(uint8_t x, uint16_t crc) {
     const uint16_t poly = 0x1021;
-    static uint8_t i, j;
+    static uint8_t j;
 
-    for (i = 0; i < len; ++i) {
-        uint16_t x = data[i];
-        crc = (crc ^ x << 8);
-        for (j = 0; j < 8; ++j) {
-            if (crc & 0x8000) {
-                crc = crc << 1 ^ poly;
-            } else {
-                crc <<= 1;
-            }
+    crc = (crc ^ x << 8);
+    for (j = 0; j < 8; ++j) {
+        if (crc & 0x8000) {
+            crc = crc << 1 ^ poly;
+        } else {
+            crc <<= 1;
         }
     }
+
     return crc;
 }
 
 void SendAddress(uint8_t command, uint32_t addr) {
     ChipSelect(command);
-    SpiWriteByte((addr >> 16) & 0xff);
-    SpiWriteByte((addr >> 8) & 0xff);
-    SpiWriteByte((addr >> 0) & 0xff);
+    SpiTxRx((addr >> 16) & 0xff);
+    SpiTxRx((addr >> 8) & 0xff);
+    SpiTxRx((addr >> 0) & 0xff);
 }
 
 static uint8_t buf[CDC1_DATA_IN_EP_SIZE];
@@ -249,15 +253,15 @@ static uint8_t verify_crc = 1;
 void Flash(void) {
     WriteUsbSync(&XMODEM_C, 1);
 
-    static uint8_t r, len, valid, op_size, avail;
-    static uint32_t write_addr;
-    static uint32_t page_addr;
-    static uint16_t t, seq, frame_crc, data_crc, frame_size, remain, i, page_remaining;
+    static uint8_t r, len, valid, op_size, open;
+    static uint32_t frame_addr, write_addr;
+    static uint16_t t, seq, frame_crc, data_crc, frame_size, remain, i;
     static uint8_t* start;
 
     r = 0;
     t = tick_count;
     seq = 1;
+    frame_addr = 0;
     write_addr = 0;
 
     while (1) {
@@ -304,7 +308,8 @@ void Flash(void) {
             remain = frame_size;
             frame_crc = 0;
             data_crc = 0;
-            page_addr = write_addr;
+            write_addr = frame_addr;
+            open = 0;
 
             // Verify that this is the expected sequence number. Only
             // write if it is valid, but continue to read all the data
@@ -316,7 +321,7 @@ void Flash(void) {
             start = buf+3;
             len -= 3;
 
-            // Keep reading&writing untill we've done frame_size bytes.
+            // Keep reading&writing until we've done frame_size bytes.
             while (1) {
                 if (len) {
                     // This will happen on the last read, where there will
@@ -325,46 +330,38 @@ void Flash(void) {
                         len = remain;
                     }
 
-                    // Only write to SPI flash if we're expecting this frame
-                    // to be valid.
-                    if (valid) {
-                        // Update the CRC with this chunk.
-                        data_crc = XModemCrc16(start, len, data_crc);
+                    // Update number of bytes left for this xmodem frame.
+                    remain -= len;
 
-                        // Write the data.
-                        // A write might straddle a page boundary, so it might
-                        // need to be broken into multiple writes so this
-                        // loop will either run once or twice.
-                        avail = len;
-                        while (avail > 0) {
+                    uint8_t l2 = len;
+
+                    // Write len bytes to flash, starting a new write op every
+                    // time we cross a page boundary.
+                    while (l2) {
+                        if (!open || (write_addr & 0xff) == 0) {
+                            if (open) {
+                                WaitForWriteInProgress();
+                            }
+                            open = 1;
+
                             // Write enable.
                             ChipSelect(0x06);
                             ChipDeselect();
 
-                            // Write whatever's left of the current page.
-                            page_remaining = (256 - (page_addr & 0xff));
-                            op_size = avail;
-                            if (op_size > page_remaining) {
-                                // Write to the end of this page, leave
-                                // remaining for next iteration.
-                                op_size = page_remaining;
-                            }
-
-                            SendAddress(0x02, page_addr);
-                            SpiWrite(start, op_size);
-                            WaitForWriteInProgress();
-
-                            // Advance to the start of the next page.
-                            page_addr += op_size;
-                            start += op_size;
-                            avail -= op_size;
-
-                            // assert((page_addr & 0xff) == 0)
+                            SendAddress(0x02, write_addr);
                         }
-                    }
 
-                    // Update number of bytes left for this frame.
-                    remain -= len;
+                        data_crc = XModemCrc16(*start, data_crc);
+                        SpiTxRx(*start);
+                        ++start;
+                        --l2;
+                        ++write_addr;
+                    }
+                }
+
+                if (open) {
+                    WaitForWriteInProgress();
+                    open = 0;
                 }
 
                 // Frame complete. The next two bytes should be the CRC.
@@ -391,10 +388,9 @@ void Flash(void) {
                     data_crc = 0;
 
                     // Read back from SPI flash.
-                    SendAddress(0x03, write_addr);
-                    for (i = 0; i < frame_size; i += sizeof(buf)) {
-                        SpiRead(buf, sizeof(buf));
-                        data_crc = XModemCrc16(buf, sizeof(buf), data_crc);
+                    SendAddress(0x03, frame_addr);
+                    for (i = 0; i < frame_size; ++i) {
+                        data_crc = XModemCrc16(SpiTxRx(0), data_crc);
                     }
                     ChipDeselect();
                 } else {
@@ -407,7 +403,7 @@ void Flash(void) {
                     // Everything worked! Advance sequence number, the write
                     // address and ACK the frame.
                     seq += 1;
-                    write_addr += frame_size;
+                    frame_addr += frame_size;
                     WriteUsbSync(&XMODEM_ACK, 1);
                     continue;
                 }
