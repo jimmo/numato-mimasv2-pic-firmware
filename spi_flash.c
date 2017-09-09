@@ -350,7 +350,6 @@ void Flash(void) {
                             SendAddress(0x02, write_addr);
                         }
 
-                        data_crc = XModemCrc16(*start, data_crc);
                         SpiTxRx(*start);
                         ++start;
                         --l2;
@@ -381,7 +380,7 @@ void Flash(void) {
             }
 
             // Finished the frame, verify CRC against the received data.
-            if (valid && frame_crc == data_crc) {
+            if (valid) {
                 if (verify_crc) {
                     // Then optionally verify against the written data.
                     data_crc = 0;
@@ -394,7 +393,7 @@ void Flash(void) {
                     ChipDeselect();
                 } else {
                     // Verify disabled, skip by setting to the known-good CRC.
-                    data_crc == frame_crc;
+                    data_crc = frame_crc;
                 }
 
                 // Verify read-back CRC.
