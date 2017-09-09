@@ -4,7 +4,6 @@
 
 #include "usb_device_cdc.h"
 
-#include "spi.h"
 #include "spi_flash.h"
 
 #include "system.h"
