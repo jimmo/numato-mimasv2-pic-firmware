@@ -2,12 +2,15 @@
 
 ## Overview
 
-This replaces the factory firmware and addresses two main limitations:
+This replaces the factory firmware and addresses three main limitations:
 
 - The FPGA UART now runs at 115200 baud.
 - The board shows up as two USB serial ports, one for the SPI Flash programmer, one for the FPGA UART. This avoids the need to use the mode switch on the board.
+- It's much faster to program.
 
 The programming interface supports XMODEM-CRC and XMODEM1k removing the need for a custom programmer.
+
+See also the `compat` branch for firmware that is backwards compatible with the Numato programmer.py (but addresses 1 & 2 above).
 
 ## Building instructions:
 
@@ -94,4 +97,6 @@ $ screen /dev/ttyACM1 115200
 
 ## TODO
 
-- Make the FPGA UART speed detect automatically from the host.
+- Make the FPGA UART speed detect automatically from the host. (In progress)
+- Set a write offset
+- Set a write size (and fill with zeros)
