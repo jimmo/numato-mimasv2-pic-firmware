@@ -2,10 +2,12 @@
 
 ## Overview
 
-This replaces the factory firmware and addresses two main limitations:
+This replaces the factory firmware (while remaining compatibility with the programmer.py script) and addresses two main limitations:
 
 - The FPGA UART now runs at 115200 baud.
 - The board shows up as two USB serial ports, one for the SPI Flash programmer, one for the FPGA UART. This avoids the need to use the mode switch on the board.
+
+See the `new-protocol` branch for a faster version (requires a new programmer.py) or the `master` branch for an xmodem-based implementation.
 
 ## Building instructions:
 
@@ -51,5 +53,4 @@ Remove the jumper and power-cycle the board.
 
 ## TODO
 
-- Make SPI flash programming faster. xmodem?
 - Make the FPGA UART speed detect automatically from the host.
