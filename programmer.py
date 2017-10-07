@@ -42,6 +42,7 @@ def xmodem_getc(size, timeout=1):
 
 def xmodem_putc(data, timeout=1):
   port.timeout = timeout
+  print('.', end='', flush=True)
   #print('Tx:', data)
   return port.write(data)
 
@@ -52,6 +53,7 @@ port.read(3)
 
 with open(args.filename, 'rb') as stream:
   if modem.send(stream):
+    print()
     print('Done.')
   else:
     print('Failed.')
