@@ -11,6 +11,10 @@ verify_parser = parser.add_mutually_exclusive_group(required=False)
 verify_parser.add_argument('--verify', dest='verify', action='store_true')
 verify_parser.add_argument('--no-verify', dest='verify', action='store_false')
 parser.set_defaults(verify=True)
+erase_parser = parser.add_mutually_exclusive_group(required=False)
+erase_parser.add_argument('--erase', dest='erase', action='store_true')
+erase_parser.add_argument('--no-erase', dest='erase', action='store_false')
+parser.set_defaults(erase=False)
 parser.add_argument('--protocol', help='XMODEM protocol (xmodem or xmodem1k)', default='xmodem1k')
 args = parser.parse_args()
 
@@ -26,6 +30,15 @@ if len(chipid) > 1 and chipid[1].strip() == '202015':
 else:
   print('Didn\'t find SPI Flash.')
   sys.exit(1)
+
+if args.erase:
+  print('Erasing flash -- this takes approx 16 seconds.')
+  port.write(b'e\r')
+  while True:
+    if port.read(1) == b'>':
+      break
+  port.read(1)
+  print('Erase complete.')
 
 if args.verify:
   port.write(b'C\r')
